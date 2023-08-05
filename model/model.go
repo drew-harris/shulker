@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	dTypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/drewharris/dockercraft/docker"
 	"github.com/drewharris/dockercraft/types"
@@ -22,6 +23,7 @@ type LoadingModel struct {
 type MainModel struct {
 	isFullScreen bool
 	isLoading    bool
+	image        *dTypes.ImageSummary
 	loadingModel LoadingModel
 	width        int
 	height       int
@@ -32,6 +34,8 @@ func (m MainModel) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	cmds = append(cmds, m.loadingModel.spinner.Tick)
 	cmds = append(cmds, docker.ListenInitialBuild(m.loadingModel.outputChan))
+	cmds = append(cmds, docker.TryInitialBuild(m.loadingModel.outputChan))
+
 	return tea.Batch(cmds...)
 }
 
@@ -85,7 +89,7 @@ func (m MainModel) View() string {
 	return "Hello there"
 }
 
-func InitialModel(client *client.Client) MainModel {
+func InitialModel(client *client.Client, image *dTypes.ImageSummary) MainModel {
 	s := spinner.New()
 	s.Spinner = spinner.Line
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#fff"))
@@ -94,6 +98,7 @@ func InitialModel(client *client.Client) MainModel {
 		isFullScreen: false,
 		isLoading:    true,
 		d:            client,
+		image:        image,
 		loadingModel: LoadingModel{
 			spinner:       s,
 			loadingOutput: []string{},
