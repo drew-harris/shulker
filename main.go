@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -16,15 +18,24 @@ var (
 	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff8888"))
 )
 
+type LoadingModel struct {
+	spinner spinner.Model
+}
+
 type MainModel struct {
 	isFullScreen bool
+	isLoading    bool
+	loadingModel LoadingModel
 	width        int
 	height       int
 	d            *client.Client
 }
 
 func (m MainModel) Init() tea.Cmd {
-	return nil
+	var cmds []tea.Cmd
+	cmds = append(cmds, m.loadingModel.spinner.Tick)
+	return tea.Batch(cmds...)
+
 }
 
 func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -34,21 +45,40 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "esc", "ctrl+c":
 			return m, tea.Quit
 		}
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+
+	default:
+		var cmd tea.Cmd
+		m.loadingModel.spinner, cmd = m.loadingModel.spinner.Update(msg)
+		return m, cmd
 	}
+
 	return m, nil
 }
 
 func (m MainModel) View() string {
+	if m.isLoading {
+		loadingStyle := lipgloss.NewStyle().Padding(2).Bold(true)
+		return loadingStyle.Render(m.loadingModel.spinner.View() + " Starting server")
+	}
 	return "Hello there"
 }
 
 func InitialModel(client *client.Client) MainModel {
+	s := spinner.New()
+	s.Spinner = spinner.Line
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#fff"))
+
 	return MainModel{
 		isFullScreen: false,
+		isLoading:    true,
 		d:            client,
+		loadingModel: LoadingModel{
+			spinner: s,
+		},
 	}
 }
 
