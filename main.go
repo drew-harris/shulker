@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -19,6 +18,7 @@ type MainModel struct {
 	isFullScreen bool
 	width        int
 	height       int
+	d            *client.Client
 }
 
 func (m MainModel) Init() tea.Cmd {
@@ -43,27 +43,23 @@ func (m MainModel) View() string {
 	return "Hello there"
 }
 
-func InitialModel() MainModel {
+func InitialModel(client *client.Client) MainModel {
 	return MainModel{
 		isFullScreen: false,
+		d:            client,
 	}
 }
 
 func main() {
-	p := tea.NewProgram(InitialModel())
+	os.Setenv("DOCKER_API_VERSION", "1.41")
 
-	_, err := client.NewClientWithOpts(client.FromEnv)
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(errorStyle.Copy().Foreground(lipgloss.Color("#f07f60")).Render("Error connecting to docker"))
-			log.Println("panic occurred:", err)
-			log.Println(errorStyle.Render("Are you running docker???"))
-		}
-	}()
-	if err == nil {
-		fmt.Println(errorStyle.Render(err.Error()))
-		fmt.Println(errorStyle.Copy().Foreground(lipgloss.Color("#f07f60")).Render("Error connecting to docker"))
+	d, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		fmt.Println("Error")
+		os.Exit(1)
 	}
+
+	p := tea.NewProgram(InitialModel(d))
 
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
