@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 )
 
@@ -55,7 +57,14 @@ func main() {
 
 	d, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
-		fmt.Println("Error")
+		fmt.Println(errorStyle.Render("Error connecting to docker " + err.Error()))
+		os.Exit(1)
+	}
+
+	// Test connection by getting containers
+	_, err = d.ContainerList(context.Background(), types.ContainerListOptions{})
+	if err != nil {
+		fmt.Println(errorStyle.Render("\n   Can't connect to Docker, Is it running?"))
 		os.Exit(1)
 	}
 
