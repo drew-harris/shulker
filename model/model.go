@@ -9,12 +9,14 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/docker/docker/client"
+	"github.com/drewharris/dockercraft/docker"
+	"github.com/drewharris/dockercraft/types"
 )
 
 type LoadingModel struct {
 	spinner       spinner.Model
 	loadingOutput []string
-	outputChan    chan responseMsg
+	outputChan    chan types.ResponseMsg
 }
 
 type MainModel struct {
@@ -26,28 +28,11 @@ type MainModel struct {
 	d            *client.Client
 }
 
-type responseMsg struct {
-	target  responseTarget
-	message string
-}
-
-type responseTarget string
-
-var (
-	startupResponse responseTarget = "startup"
-)
-
 func (m MainModel) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	cmds = append(cmds, m.loadingModel.spinner.Tick)
-	cmds = append(cmds, listenInitialBuild(m.loadingModel.outputChan))
+	cmds = append(cmds, docker.ListenInitialBuild(m.loadingModel.outputChan))
 	return tea.Batch(cmds...)
-}
-
-func listenInitialBuild(sub chan responseMsg) tea.Cmd {
-	return func() tea.Msg {
-		return responseMsg(<-sub)
-	}
 }
 
 func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -58,9 +43,9 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "t":
 			randomNum := rand.Intn(100)
-			m.loadingModel.outputChan <- responseMsg{
-				target:  startupResponse,
-				message: "TEst" + fmt.Sprintf(" %d", randomNum),
+			m.loadingModel.outputChan <- types.ResponseMsg{
+				Target:  types.StartupResponse,
+				Message: "TEst" + fmt.Sprintf(" %d", randomNum),
 			}
 			return m, nil
 		}
@@ -70,14 +55,14 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 
 	// Channel response messages
-	case responseMsg:
-		switch msg.target {
-		case startupResponse:
-			m.loadingModel.loadingOutput = append(m.loadingModel.loadingOutput, string(msg.message))
+	case types.ResponseMsg:
+		switch msg.Target {
+		case types.StartupResponse:
+			m.loadingModel.loadingOutput = append(m.loadingModel.loadingOutput, string(msg.Message))
 			if len(m.loadingModel.loadingOutput) > m.height/3 {
 				m.loadingModel.loadingOutput = m.loadingModel.loadingOutput[1:]
 			}
-			return m, listenInitialBuild(m.loadingModel.outputChan)
+			return m, docker.ListenInitialBuild(m.loadingModel.outputChan)
 		}
 
 	default:
@@ -112,7 +97,7 @@ func InitialModel(client *client.Client) MainModel {
 		loadingModel: LoadingModel{
 			spinner:       s,
 			loadingOutput: []string{},
-			outputChan:    make(chan responseMsg),
+			outputChan:    make(chan types.ResponseMsg),
 		},
 	}
 
