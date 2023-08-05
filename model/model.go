@@ -82,9 +82,11 @@ func (m MainModel) View() string {
 	if m.isLoading {
 		loadingStyle := lipgloss.NewStyle().Padding(2).Bold(true)
 		loading := loadingStyle.Height(m.height / 3).Width(m.width / 4).Align(lipgloss.Center).AlignVertical(lipgloss.Center).Render(m.loadingModel.spinner.View() + "   Starting server")
-		output := lipgloss.NewStyle().Width(m.width / 2).Render(strings.Join(m.loadingModel.loadingOutput, "\n"))
+		output := lipgloss.NewStyle().MaxWidth(m.width / 2).Render(strings.Join(m.loadingModel.loadingOutput, "\n"))
 
-		return lipgloss.JoinHorizontal(lipgloss.Top, loading, output)
+		screen := lipgloss.NewStyle().Margin(1).Border(lipgloss.RoundedBorder()).Width(m.width - 8)
+
+		return screen.Render(lipgloss.JoinHorizontal(lipgloss.Top, loading, output))
 	}
 	return "Hello there"
 }
