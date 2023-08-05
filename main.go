@@ -62,7 +62,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m MainModel) View() string {
 	if m.isLoading {
 		loadingStyle := lipgloss.NewStyle().Padding(2).Bold(true)
-		return loadingStyle.Render(m.loadingModel.spinner.View() + " Starting server")
+		return loadingStyle.Render(m.loadingModel.spinner.View() + "   Starting server")
 	}
 	return "Hello there"
 }
