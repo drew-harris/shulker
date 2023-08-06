@@ -130,7 +130,9 @@ func createContainer(d *client.Client) (container.CreateResponse, error) {
 		},
 	}
 	c, err := d.ContainerCreate(context.Background(), &container.Config{
-		Image: "dockercraft:latest",
+		Image:     "dockercraft:latest",
+		Tty:       true,
+		OpenStdin: true,
 	}, hostConfig, nil, nil, "dockercraft_c")
 	return c, err
 }
