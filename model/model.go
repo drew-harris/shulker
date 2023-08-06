@@ -95,7 +95,6 @@ func (m MainModel) View() string {
 
 		var nonAlphanumericRegex = regexp.MustCompile(`[^\x20-\x7e]`)
 		for i, str := range m.loadingModel.loadingOutput {
-
 			m.loadingModel.loadingOutput[i] = nonAlphanumericRegex.ReplaceAllString(str, "")
 		}
 		output := styles.Dimmed.Render(strings.Join(m.loadingModel.loadingOutput, "\n"))
