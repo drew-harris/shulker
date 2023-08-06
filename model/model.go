@@ -26,13 +26,13 @@ type MainModel struct {
 	width         int
 	height        int
 	d             *client.Client
-	outputChan    chan types.ResponseMsg
+	outputChan    chan types.OutputMsg
 	errorMessages []string
 }
 
-func ListenForOutput(sub chan types.ResponseMsg) tea.Cmd {
+func ListenForOutput(sub chan types.OutputMsg) tea.Cmd {
 	return func() tea.Msg {
-		return types.ResponseMsg(<-sub)
+		return types.OutputMsg(<-sub)
 	}
 }
 
@@ -58,15 +58,15 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 
-	// Channel response messages
-	case types.ResponseMsg:
+	// Channel output messages
+	case types.OutputMsg:
 		switch msg.Target {
-		case types.StartupResponse:
+		case types.StartupOutput:
 			m.loadingModel.loadingOutput = append(m.loadingModel.loadingOutput, string(msg.Message))
 			if len(m.loadingModel.loadingOutput) > m.height/3 {
 				m.loadingModel.loadingOutput = m.loadingModel.loadingOutput[1:]
 			}
-		case types.ErrorResponse:
+		case types.ErrorOutput:
 			m.errorMessages = append(m.errorMessages, msg.Message)
 		}
 		return m, ListenForOutput(m.outputChan)
@@ -112,7 +112,7 @@ func InitialModel(client *client.Client) MainModel {
 		isFullScreen: false,
 		isLoading:    true,
 		d:            client,
-		outputChan:   make(chan types.ResponseMsg),
+		outputChan:   make(chan types.OutputMsg),
 		loadingModel: LoadingModel{
 			spinner:       s,
 			loadingOutput: []string{},

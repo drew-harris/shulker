@@ -13,10 +13,10 @@ type Command struct {
 	Name   string
 	Args   []string
 	Dir    string
-	Target types.ResponseTarget
+	Target types.OutputTarget
 }
 
-func RunExternalCommand(sub chan types.ResponseMsg, command Command) error {
+func RunExternalCommand(sub chan types.OutputMsg, command Command) error {
 	cmd := exec.Command(command.Name, command.Args...)
 	if command.Dir != "" {
 		cmd.Dir = command.Dir
@@ -40,7 +40,7 @@ func RunExternalCommand(sub chan types.ResponseMsg, command Command) error {
 
 	scanner := bufio.NewScanner(stdout) // Scanner doesn't return newline byte
 	for scanner.Scan() {
-		sub <- types.ResponseMsg{
+		sub <- types.OutputMsg{
 			Target:  command.Target,
 			Message: strings.ReplaceAll(scanner.Text(), "\n", ""),
 		}
@@ -52,12 +52,12 @@ func RunExternalCommand(sub chan types.ResponseMsg, command Command) error {
 	return nil
 }
 
-func TeaRunCommandWithOutput(sub chan types.ResponseMsg, command Command, endMsg tea.Msg) tea.Cmd {
+func TeaRunCommandWithOutput(sub chan types.OutputMsg, command Command, endMsg tea.Msg) tea.Cmd {
 	return func() tea.Msg {
 		err := RunExternalCommand(sub, command)
 		if err != nil {
-			sub <- types.ResponseMsg{
-				Target:  types.ErrorResponse,
+			sub <- types.OutputMsg{
+				Target:  types.ErrorOutput,
 				Message: err.Error(),
 			}
 		}

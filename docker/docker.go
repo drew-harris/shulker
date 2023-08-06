@@ -13,7 +13,7 @@ import (
 	"github.com/drewharris/dockercraft/types"
 )
 
-func PrepareContainerCmd(sub chan types.ResponseMsg, d *client.Client) tea.Cmd {
+func PrepareContainerCmd(sub chan types.OutputMsg, d *client.Client) tea.Cmd {
 	return func() tea.Msg {
 		images, err := d.ImageList(context.Background(), dtypes.ImageListOptions{All: true})
 		if err != nil {
@@ -34,7 +34,7 @@ func PrepareContainerCmd(sub chan types.ResponseMsg, d *client.Client) tea.Cmd {
 			commands.RunExternalCommand(sub, commands.Command{
 				Name:   "docker",
 				Args:   []string{"build", "-t", "dockercraft", "-f", "Dockerfile.dev", "."},
-				Target: types.StartupResponse,
+				Target: types.StartupOutput,
 			})
 		}
 
@@ -43,8 +43,8 @@ func PrepareContainerCmd(sub chan types.ResponseMsg, d *client.Client) tea.Cmd {
 			All: true,
 		})
 		if err != nil {
-			sub <- types.ResponseMsg{
-				Target:  types.ErrorResponse,
+			sub <- types.OutputMsg{
+				Target:  types.ErrorOutput,
 				Message: err.Error(),
 			}
 		}

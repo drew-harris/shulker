@@ -1,15 +1,15 @@
 package types
 
-type ResponseMsg struct {
-	Target  ResponseTarget
+type OutputMsg struct {
+	Target  OutputTarget
 	Message string
 }
 
-type ResponseTarget string
+type OutputTarget string
 
 var (
-	StartupResponse ResponseTarget = "startup"
-	ErrorResponse   ResponseTarget = "error"
+	StartupOutput OutputTarget = "startup"
+	ErrorOutput   OutputTarget = "error"
 )
 
 type FinishedSetupCmd struct {
