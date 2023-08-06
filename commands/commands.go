@@ -52,6 +52,21 @@ func RunExternalCommand(sub chan types.OutputMsg, command Command) error {
 	return nil
 }
 
+func GetCommandOutput(command Command) (string, error) {
+	cmd := exec.Command(command.Name, command.Args...)
+	if command.Dir != "" {
+		cmd.Dir = command.Dir
+	} else {
+		cmd.Dir = "/Users/drew/programs/mc-docker" // TODO: Make this the current working directory
+	}
+
+	raw, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+	return string(raw), nil
+}
+
 func TeaRunCommandWithOutput(sub chan types.OutputMsg, command Command, endMsg tea.Msg) tea.Cmd {
 	return func() tea.Msg {
 		err := RunExternalCommand(sub, command)

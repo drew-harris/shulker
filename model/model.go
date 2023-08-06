@@ -71,11 +71,11 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, ListenForOutput(m.outputChan)
 
-	case types.FinishedSetupCmd:
-		m.ConatainerId = msg.ContainerId
-		m.ImageId = msg.ImageId
-		m.isLoading = false
-		return m, tea.EnterAltScreen
+	// case types.FinishedSetupCmd:
+	// m.ConatainerId = msg.ContainerId
+	// m.ImageId = msg.ImageId
+	// m.isLoading = false
+	// return m, tea.EnterAltScreen
 
 	default:
 		var cmd tea.Cmd

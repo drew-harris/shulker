@@ -7,7 +7,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	dtypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
 	"github.com/drewharris/dockercraft/commands"
 	"github.com/drewharris/dockercraft/styles"
 	"github.com/drewharris/dockercraft/types"
@@ -56,11 +59,38 @@ func PrepareContainerCmd(sub chan types.OutputMsg, d *client.Client) tea.Cmd {
 			}
 		}
 
-		// if containerId == "" {
-		// 	// Create container
-		// }
+		if containerId == "" {
+
+			c, err := createContainer(d)
+			if err != nil {
+				sub <- types.OutputMsg{
+					Target:  types.ErrorOutput,
+					Message: "Could not create container: " + err.Error(),
+				}
+			}
+
+			// Trim whitespace of output
+			containerId = c.ID
+			sub <- types.OutputMsg{
+				Target:  types.StartupOutput,
+				Message: "Created container: " + containerId,
+			}
+		}
+
+		sub <- types.OutputMsg{
+			Target:  types.StartupOutput,
+			Message: "Found COntianer: " + containerId,
+		}
 
 		// - Start container
+		err = d.ContainerStart(context.Background(), containerId, dtypes.ContainerStartOptions{})
+		if err != nil {
+			sub <- types.OutputMsg{
+				Target:  types.ErrorOutput,
+				Message: "Could not start container: " + err.Error(),
+			}
+		}
+
 		// - Check if all plugins built?
 		// - Build plugins if not
 
@@ -69,4 +99,38 @@ func PrepareContainerCmd(sub chan types.OutputMsg, d *client.Client) tea.Cmd {
 			ContainerId: containerId,
 		}
 	}
+}
+
+func createContainer(d *client.Client) (container.CreateResponse, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	// Create container
+	hostConfig := &container.HostConfig{
+		PortBindings: nat.PortMap{
+			"25565/tcp": []nat.PortBinding{
+				{
+					HostIP:   "0.0.0.0",
+					HostPort: "25565",
+				},
+			},
+		},
+		Mounts: []mount.Mount{
+			{
+				Type:   mount.TypeBind,
+				Source: cwd + "/plugins",
+				Target: "/plugins",
+			},
+			{
+				Type:   mount.TypeBind,
+				Source: cwd + "/static",
+				Target: "/static",
+			},
+		},
+	}
+	c, err := d.ContainerCreate(context.Background(), &container.Config{
+		Image: "dockercraft:latest",
+	}, hostConfig, nil, nil, "dockercraft_c")
+	return c, err
 }
