@@ -151,7 +151,7 @@ func PrepareContainerCmd(sub chan types.OutputMsg, d *client.Client) tea.Cmd {
 
 		sub <- types.OutputMsg{
 			Target:  types.StartupOutput,
-			Message: "All Plugins Built",
+			Message: "All Plugins Built!",
 		}
 
 		return types.FinishedSetupCmd{

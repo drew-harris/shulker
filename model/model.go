@@ -1,6 +1,7 @@
 package model
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -89,10 +90,13 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m MainModel) View() string {
 	if m.isLoading {
 		errors := styles.Error.Render(strings.Join(m.errorMessages, "\n"))
-		loadingStyle := lipgloss.NewStyle().Padding(2).Bold(true)
-		loading := loadingStyle.Height(m.height / 3).Width(m.width / 3).Align(lipgloss.Center).AlignVertical(lipgloss.Center).Render(m.loadingModel.spinner.View() + "   Starting server")
+		loadingStyle := lipgloss.NewStyle().Padding(2).Bold(true).Italic(true)
+		loading := loadingStyle.Height(m.height / 3).Width(m.width / 3).Align(lipgloss.Center).AlignVertical(lipgloss.Center).Render(m.loadingModel.spinner.View() + "   Starting Server...")
+
+		var nonAlphanumericRegex = regexp.MustCompile(`[^\x20-\x7e]`)
 		for i, str := range m.loadingModel.loadingOutput {
-			m.loadingModel.loadingOutput[i] = strings.Trim(str, "\n")
+
+			m.loadingModel.loadingOutput[i] = nonAlphanumericRegex.ReplaceAllString(str, "")
 		}
 		output := styles.Dimmed.Render(strings.Join(m.loadingModel.loadingOutput, "\n"))
 		screen := lipgloss.NewStyle().Margin(1).MaxWidth(m.width - 8)
