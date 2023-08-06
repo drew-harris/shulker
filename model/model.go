@@ -1,12 +1,14 @@
 package model
 
 import (
-	"regexp"
+	"context"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	dtypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/drewharris/dockercraft/docker"
 	"github.com/drewharris/dockercraft/styles"
@@ -18,17 +20,29 @@ type LoadingModel struct {
 	loadingOutput []string
 }
 
+type ServerExec struct {
+	ExecId     string
+	Connection dtypes.HijackedResponse
+}
+
+type ExecId string
+
 type MainModel struct {
-	isFullScreen  bool
-	isLoading     bool
-	ImageId       string
-	ConatainerId  string
-	loadingModel  LoadingModel
-	width         int
-	height        int
-	d             *client.Client
+	isLoading    bool
+	loadingModel LoadingModel
+
+	width  int
+	height int
+	d      *client.Client
+
+	ImageId      string
+	ConatainerId string
+
 	outputChan    chan types.OutputMsg
 	errorMessages []string
+
+	ServerExec ServerExec
+	OtherExecs []ExecId
 }
 
 func ListenForOutput(sub chan types.OutputMsg) tea.Cmd {
@@ -47,11 +61,16 @@ func (m MainModel) Init() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
+func (m *MainModel) Shutdown() {
+	m.d.ContainerStop(context.Background(), m.ConatainerId, container.StopOptions{})
+}
+
 func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "esc", "ctrl+c": // QUIT
+			m.Shutdown()
 			return m, tea.Quit
 		}
 
@@ -76,7 +95,11 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ConatainerId = msg.ContainerId
 		m.ImageId = msg.ImageId
 		m.isLoading = false
-		return m, tea.EnterAltScreen
+		return m, tea.Batch(tea.EnterAltScreen, m.startServerExecCmd())
+
+	case ServerExec:
+		m.ServerExec = msg
+		return m, nil
 
 	default:
 		var cmd tea.Cmd
@@ -93,10 +116,10 @@ func (m MainModel) View() string {
 		loadingStyle := lipgloss.NewStyle().Padding(2).Bold(true).Italic(true)
 		loading := loadingStyle.Height(m.height / 3).Width(m.width / 3).Align(lipgloss.Center).AlignVertical(lipgloss.Center).Render(m.loadingModel.spinner.View() + "   Starting Server...")
 
-		var nonAlphanumericRegex = regexp.MustCompile(`[^\x20-\x7e]`)
-		for i, str := range m.loadingModel.loadingOutput {
-			m.loadingModel.loadingOutput[i] = nonAlphanumericRegex.ReplaceAllString(str, "")
-		}
+		// var nonAlphanumericRegex = regexp.MustCompile(`[^\x20-\x7e]`)
+		// for i, str := range m.loadingModel.loadingOutput {
+		// 	m.loadingModel.loadingOutput[i] = nonAlphanumericRegex.ReplaceAllString(str, "")
+		// }
 		output := styles.Dimmed.Render(strings.Join(m.loadingModel.loadingOutput, "\n"))
 		screen := lipgloss.NewStyle().Margin(1).MaxWidth(m.width - 8)
 		return screen.Render(
@@ -106,7 +129,14 @@ func (m MainModel) View() string {
 				lipgloss.JoinHorizontal(lipgloss.Top, loading, output)),
 		)
 	}
-	return "Hello there"
+
+	errors := styles.Error.Render(strings.Join(m.errorMessages, "\n"))
+
+	return lipgloss.JoinVertical(
+		lipgloss.Center,
+		errors,
+		"Hellow",
+	)
 }
 
 func InitialModel(client *client.Client) MainModel {
@@ -115,10 +145,9 @@ func InitialModel(client *client.Client) MainModel {
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#fff"))
 
 	model := MainModel{
-		isFullScreen: false,
-		isLoading:    true,
-		d:            client,
-		outputChan:   make(chan types.OutputMsg),
+		isLoading:  true,
+		d:          client,
+		outputChan: make(chan types.OutputMsg),
 		loadingModel: LoadingModel{
 			spinner:       s,
 			loadingOutput: []string{},

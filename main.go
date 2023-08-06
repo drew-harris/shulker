@@ -24,7 +24,7 @@ func main() {
 
 	_, err = d.ImageList(context.Background(), types.ImageListOptions{All: true})
 	if err != nil {
-		fmt.Println(styles.Error.Render("\n   Can't connect to Docker, Is it running? \n" + err.Error()))
+		fmt.Println(styles.Error.Render("\n   Can't connect to Docker, Is it running?"))
 		os.Exit(1)
 	}
 

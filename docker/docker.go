@@ -62,7 +62,6 @@ func PrepareContainerCmd(sub chan types.OutputMsg, d *client.Client) tea.Cmd {
 		}
 
 		if containerId == "" {
-
 			c, err := createContainer(d)
 			if err != nil {
 				sub <- types.OutputMsg{
