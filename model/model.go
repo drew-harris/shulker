@@ -63,7 +63,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case types.OutputMsg:
 		switch msg.Target {
 		case types.StartupOutput:
-			m.loadingModel.loadingOutput = append(m.loadingModel.loadingOutput, string(msg.Message))
+			m.loadingModel.loadingOutput = append(m.loadingModel.loadingOutput, msg.Message)
 			if len(m.loadingModel.loadingOutput) > m.height/3 {
 				m.loadingModel.loadingOutput = m.loadingModel.loadingOutput[1:]
 			}
@@ -72,11 +72,11 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, ListenForOutput(m.outputChan)
 
-	// case types.FinishedSetupCmd:
-	// m.ConatainerId = msg.ContainerId
-	// m.ImageId = msg.ImageId
-	// m.isLoading = false
-	// return m, tea.EnterAltScreen
+	case types.FinishedSetupCmd:
+		m.ConatainerId = msg.ContainerId
+		m.ImageId = msg.ImageId
+		m.isLoading = false
+		return m, tea.EnterAltScreen
 
 	default:
 		var cmd tea.Cmd

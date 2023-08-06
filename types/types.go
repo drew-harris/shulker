@@ -10,6 +10,9 @@ type OutputTarget string
 var (
 	StartupOutput OutputTarget = "startup"
 	ErrorOutput   OutputTarget = "error"
+	InfoOutput    OutputTarget = "info"
+	ServerOutput  OutputTarget = "server"
+	BuildOutput   OutputTarget = "build"
 )
 
 type FinishedSetupCmd struct {
