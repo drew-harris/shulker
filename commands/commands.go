@@ -1,0 +1,66 @@
+package commands
+
+import (
+	"bufio"
+	"os/exec"
+	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/drewharris/dockercraft/types"
+)
+
+type Command struct {
+	Name   string
+	Args   []string
+	Dir    string
+	Target types.ResponseTarget
+}
+
+func RunExternalCommand(sub chan types.ResponseMsg, command Command) error {
+	cmd := exec.Command(command.Name, command.Args...)
+	if command.Dir != "" {
+		cmd.Dir = command.Dir
+	} else {
+		cmd.Dir = "/Users/drew/programs/mc-docker" // TODO: Make this the current working directory
+	}
+
+	// Display output
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
+	// Combine stdout and stderr so that both are captured
+	cmd.Stderr = cmd.Stdout
+
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	scanner := bufio.NewScanner(stdout) // Scanner doesn't return newline byte
+	for scanner.Scan() {
+		sub <- types.ResponseMsg{
+			Target:  command.Target,
+			Message: strings.ReplaceAll(scanner.Text(), "\n", ""),
+		}
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func TeaRunCommandWithOutput(sub chan types.ResponseMsg, command Command, endMsg tea.Msg) tea.Cmd {
+	return func() tea.Msg {
+		err := RunExternalCommand(sub, command)
+		if err != nil {
+			sub <- types.ResponseMsg{
+				Target:  types.ErrorResponse,
+				Message: err.Error(),
+			}
+		}
+		return endMsg
+	}
+}

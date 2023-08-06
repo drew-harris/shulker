@@ -9,4 +9,5 @@ type ResponseTarget string
 
 var (
 	StartupResponse ResponseTarget = "startup"
+	ErrorResponse   ResponseTarget = "error"
 )

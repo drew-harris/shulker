@@ -34,15 +34,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	var dcImage types.ImageSummary
+	var imageId = ""
 	for _, image := range images {
 		tag := image.RepoTags[0]
 		if tag == "dockercraft:latest" {
-			dcImage = image
+			imageId = image.ID
 		}
 	}
 
-	p := tea.NewProgram(model.InitialModel(d, &dcImage))
+	p := tea.NewProgram(model.InitialModel(d, imageId), tea.WithAltScreen())
 
 	f, err := tea.LogToFile("debug.log", "debug")
 	if err != nil {

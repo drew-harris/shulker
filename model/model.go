@@ -1,40 +1,49 @@
 package model
 
 import (
-	"fmt"
-	"math/rand"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	dTypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"github.com/drewharris/dockercraft/docker"
+	"github.com/drewharris/dockercraft/commands"
 	"github.com/drewharris/dockercraft/types"
 )
 
 type LoadingModel struct {
 	spinner       spinner.Model
 	loadingOutput []string
-	outputChan    chan types.ResponseMsg
 }
 
 type MainModel struct {
-	isFullScreen bool
-	isLoading    bool
-	image        *dTypes.ImageSummary
-	loadingModel LoadingModel
-	width        int
-	height       int
-	d            *client.Client
+	isFullScreen  bool
+	isLoading     bool
+	imageId       string
+	loadingModel  LoadingModel
+	width         int
+	height        int
+	d             *client.Client
+	outputChan    chan types.ResponseMsg
+	errorMessages []string
+}
+
+func ListenForOutput(sub chan types.ResponseMsg) tea.Cmd {
+	return func() tea.Msg {
+		return types.ResponseMsg(<-sub)
+	}
 }
 
 func (m MainModel) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	cmds = append(cmds, m.loadingModel.spinner.Tick)
-	cmds = append(cmds, docker.ListenInitialBuild(m.loadingModel.outputChan))
-	cmds = append(cmds, docker.TryInitialBuild(m.loadingModel.outputChan))
+	cmds = append(cmds, ListenForOutput(m.outputChan))
+
+	cmds = append(cmds, commands.TeaRunCommandWithOutput(m.outputChan, commands.Command{
+		Name:   "docker",
+		Args:   []string{"build", "-t", "dockercraft", "-f", "Dockerfile.dev", "."},
+		Target: types.StartupResponse,
+	}, nil))
 
 	return tea.Batch(cmds...)
 }
@@ -43,18 +52,11 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "q", "esc", "ctrl+c":
+		case "q", "esc", "ctrl+c": // QUIT
 			return m, tea.Quit
-		case "t":
-			randomNum := rand.Intn(100)
-			m.loadingModel.outputChan <- types.ResponseMsg{
-				Target:  types.StartupResponse,
-				Message: "TEst" + fmt.Sprintf(" %d", randomNum),
-			}
-			return m, nil
 		}
 
-	case tea.WindowSizeMsg:
+	case tea.WindowSizeMsg: // RESIZE
 		m.width = msg.Width
 		m.height = msg.Height
 
@@ -66,8 +68,10 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.loadingModel.loadingOutput) > m.height/3 {
 				m.loadingModel.loadingOutput = m.loadingModel.loadingOutput[1:]
 			}
-			return m, docker.ListenInitialBuild(m.loadingModel.outputChan)
+		case types.ErrorResponse:
+			m.errorMessages = append(m.errorMessages, msg.Message)
 		}
+		return m, ListenForOutput(m.outputChan)
 
 	default:
 		var cmd tea.Cmd
@@ -80,18 +84,22 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m MainModel) View() string {
 	if m.isLoading {
+		errors := lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000")).Render(strings.Join(m.errorMessages, "\n"))
 		loadingStyle := lipgloss.NewStyle().Padding(2).Bold(true)
-		loading := loadingStyle.Height(m.height / 3).Width(m.width / 4).Align(lipgloss.Center).AlignVertical(lipgloss.Center).Render(m.loadingModel.spinner.View() + "   Starting server")
-		output := lipgloss.NewStyle().MaxWidth(m.width / 2).Render(strings.Join(m.loadingModel.loadingOutput, "\n"))
-
-		screen := lipgloss.NewStyle().Margin(1).Border(lipgloss.RoundedBorder()).Width(m.width - 8)
-
-		return screen.Render(lipgloss.JoinHorizontal(lipgloss.Top, loading, output))
+		loading := loadingStyle.Height(m.height / 3).Width(m.width / 3).Align(lipgloss.Center).AlignVertical(lipgloss.Center).Render(m.loadingModel.spinner.View() + "   Starting server")
+		output := lipgloss.NewStyle().Foreground(lipgloss.Color("#707070")).Render(strings.Join(m.loadingModel.loadingOutput, "\n"))
+		screen := lipgloss.NewStyle().Margin(1).MaxWidth(m.width - 8)
+		return screen.Render(
+			lipgloss.JoinVertical(
+				lipgloss.Left,
+				errors,
+				lipgloss.JoinHorizontal(lipgloss.Top, loading, output)),
+		)
 	}
 	return "Hello there"
 }
 
-func InitialModel(client *client.Client, image *dTypes.ImageSummary) MainModel {
+func InitialModel(client *client.Client, imageId string) MainModel {
 	s := spinner.New()
 	s.Spinner = spinner.Line
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#fff"))
@@ -100,11 +108,11 @@ func InitialModel(client *client.Client, image *dTypes.ImageSummary) MainModel {
 		isFullScreen: false,
 		isLoading:    true,
 		d:            client,
-		image:        image,
+		imageId:      imageId,
+		outputChan:   make(chan types.ResponseMsg),
 		loadingModel: LoadingModel{
 			spinner:       s,
 			loadingOutput: []string{},
-			outputChan:    make(chan types.ResponseMsg),
 		},
 	}
 
