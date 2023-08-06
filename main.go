@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/client"
 )
 
-// STYLES
 func main() {
 	os.Setenv("DOCKER_API_VERSION", "1.41")
 

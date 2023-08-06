@@ -1,9 +1,11 @@
 package docker
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	dtypes "github.com/docker/docker/api/types"
@@ -75,11 +77,12 @@ func PrepareContainerCmd(sub chan types.OutputMsg, d *client.Client) tea.Cmd {
 				Target:  types.StartupOutput,
 				Message: "Created container: " + containerId,
 			}
-		}
+		} else {
+			sub <- types.OutputMsg{
+				Target:  types.StartupOutput,
+				Message: "Found Container: " + containerId,
+			}
 
-		sub <- types.OutputMsg{
-			Target:  types.StartupOutput,
-			Message: "Found COntianer: " + containerId,
 		}
 
 		// - Start container
@@ -90,9 +93,66 @@ func PrepareContainerCmd(sub chan types.OutputMsg, d *client.Client) tea.Cmd {
 				Message: "Could not start container: " + err.Error(),
 			}
 		}
+		sub <- types.OutputMsg{
+			Target:  types.StartupOutput,
+			Message: "Container started...",
+		}
 
 		// - Check if all plugins built?
-		// - Build plugins if not
+		// var pluginsBuilt bool
+		// stat, err := d.ContainerStatPath(context.Background(), containerId, "/server/plugins/HuMInGameLabsPlugin.jar")
+		var errors []error
+		_, err = d.ContainerStatPath(context.Background(), containerId, "/server/plugins/HuMInGameLabsPlugin.jar")
+		errors = append(errors, err)
+		_, err = d.ContainerStatPath(context.Background(), containerId, "/server/plugins/Contraption.jar")
+		errors = append(errors, err)
+		_, err = d.ContainerStatPath(context.Background(), containerId, "/server/plugins/Recycler.jar")
+		errors = append(errors, err)
+		_, err = d.ContainerStatPath(context.Background(), containerId, "/server/plugins/SplitterNode.jar")
+		errors = append(errors, err)
+
+		var notBuilt bool = false
+		for _, err := range errors {
+			if err != nil {
+				notBuilt = true
+				break
+			}
+		}
+
+		if notBuilt {
+			execId, err := d.ContainerExecCreate(context.TODO(), containerId, dtypes.ExecConfig{
+				Cmd:          []string{"./build_all.sh"},
+				AttachStderr: true,
+				AttachStdout: true,
+				Tty:          true,
+			})
+			if err != nil {
+				panic(err)
+			}
+
+			rd, err := d.ContainerExecAttach(context.Background(), execId.ID, dtypes.ExecStartCheck{})
+			d.ContainerExecStart(context.Background(), execId.ID, dtypes.ExecStartCheck{
+				ConsoleSize: &[2]uint{800, 4},
+			})
+
+			if err != nil {
+				panic(err)
+			}
+			defer rd.Close()
+			scanner := bufio.NewScanner(rd.Reader) // Scanner doesn't return newline byte
+			for scanner.Scan() {
+				sub <- types.OutputMsg{
+					Target:  types.StartupOutput,
+					Message: strings.ReplaceAll(scanner.Text(), "\n", ""),
+				}
+			}
+
+		}
+
+		sub <- types.OutputMsg{
+			Target:  types.StartupOutput,
+			Message: "All Plugins Built",
+		}
 
 		return types.FinishedSetupCmd{
 			ImageId:     imageId,
