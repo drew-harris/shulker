@@ -11,3 +11,8 @@ var (
 	StartupResponse ResponseTarget = "startup"
 	ErrorResponse   ResponseTarget = "error"
 )
+
+type FinishedSetupCmd struct {
+	ImageId     string
+	ContainerId string
+}

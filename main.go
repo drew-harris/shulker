@@ -6,43 +6,31 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/drewharris/dockercraft/model"
+	"github.com/drewharris/dockercraft/styles"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 )
 
 // STYLES
-var (
-	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff8888"))
-)
-
 func main() {
 	os.Setenv("DOCKER_API_VERSION", "1.41")
 
 	d, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
-		fmt.Println(errorStyle.Render("Error connecting to docker " + err.Error()))
+		fmt.Println(styles.Error.Render("Error connecting to docker " + err.Error()))
+		os.Exit(1)
+	}
+
+	_, err = d.ImageList(context.Background(), types.ImageListOptions{All: true})
+	if err != nil {
+		fmt.Println(styles.Error.Render("\n   Can't connect to Docker, Is it running? \n" + err.Error()))
 		os.Exit(1)
 	}
 
 	// Test connection by getting containers
-	images, err := d.ImageList(context.Background(), types.ImageListOptions{All: true})
-	if err != nil {
-		fmt.Println(errorStyle.Render("\n   Can't connect to Docker, Is it running?"))
-		os.Exit(1)
-	}
-
-	var imageId = ""
-	for _, image := range images {
-		tag := image.RepoTags[0]
-		if tag == "dockercraft:latest" {
-			imageId = image.ID
-		}
-	}
-
-	p := tea.NewProgram(model.InitialModel(d, imageId), tea.WithAltScreen())
+	p := tea.NewProgram(model.InitialModel(d))
 
 	f, err := tea.LogToFile("debug.log", "debug")
 	if err != nil {
