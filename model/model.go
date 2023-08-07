@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -61,23 +62,19 @@ func (m MainModel) Init() tea.Cmd {
 func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "esc", "ctrl+c": // QUIT
+		switch {
+		case key.Matches(msg, DefaultKeyMap.Quit):
 			m.isShuttingDown = true
 			return m, m.shutdown()
 
-		case "h":
-			m.reloadServer()
-			return m, nil
-
-		case "b":
+		case key.Matches(msg, DefaultKeyMap.ToggleBuildLogs):
 			m.isViewingBuildLogs = !m.isViewingBuildLogs
 			return m, nil
 
-		case "a":
+		case key.Matches(msg, DefaultKeyMap.Attach):
 			// Print info in non alt screen
 			return m, tea.ExecProcess(exec.Command("docker", "attach", m.ConatainerId), func(err error) tea.Msg { return nil })
-		case "r":
+		case key.Matches(msg, DefaultKeyMap.RebuildAll):
 			// Print info in non alt screen
 			m.isBuilding = true
 			return m, tea.Sequence(m.rebuildAllPlugins(), func() tea.Msg { return types.DoneBuilding })
@@ -167,7 +164,7 @@ func (m MainModel) View() string {
 
 	half := lipgloss.NewStyle().Padding(3).Width(m.width).MaxWidth((m.width) - 4)
 
-	serverLogs := half.Render(lastLines(m.serverMessages, m.height-4))
+	serverLogs := half.Render(lastLines(m.serverMessages, m.height))
 
 	statusStyle := lipgloss.NewStyle().Width(m.width).Background(lipgloss.Color("#555"))
 	var statusBar string

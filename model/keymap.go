@@ -14,6 +14,7 @@ type KeyMap struct {
 
 	Attach          key.Binding
 	ToggleBuildLogs key.Binding
+	RebuildAll      key.Binding
 }
 
 var DefaultKeyMap = KeyMap{
@@ -44,5 +45,9 @@ var DefaultKeyMap = KeyMap{
 
 	ToggleBuildLogs: key.NewBinding(
 		key.WithKeys("b"),
+	),
+
+	RebuildAll: key.NewBinding(
+		key.WithKeys("r"),
 	),
 }

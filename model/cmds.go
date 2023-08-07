@@ -47,10 +47,6 @@ func (m MainModel) startServerExecCmd() tea.Cmd {
 	}
 }
 
-func (m *MainModel) reloadServer() {
-	m.ServerExec.Connection.Conn.Write([]byte("help\n"))
-}
-
 func (m *MainModel) shutdown() tea.Cmd {
 	return func() tea.Msg {
 		m.ServerExec.Connection.Conn.Close() // Close running server
