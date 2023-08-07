@@ -19,3 +19,5 @@ type FinishedSetupCmd struct {
 	ImageId     string
 	ContainerId string
 }
+
+type CallbackFunc func() error

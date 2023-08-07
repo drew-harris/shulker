@@ -195,3 +195,48 @@ func createContainer(d *client.Client) (container.CreateResponse, error) {
 	}, hostConfig, nil, nil, "dockercraft_c")
 	return c, err
 }
+
+func RunContainerCommandAsync(d *client.Client, cid string, sub chan types.OutputMsg, cmd commands.Command, callback func() error) (string, error) {
+	var fullCmd []string
+	fullCmd = append(fullCmd, cmd.Name)
+	for _, arg := range cmd.Args {
+		fullCmd = append(fullCmd, arg)
+	}
+
+	execId, err := d.ContainerExecCreate(context.TODO(), cid, dtypes.ExecConfig{
+		Cmd:          fullCmd,
+		AttachStderr: true,
+		AttachStdout: true,
+		Tty:          true,
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	rd, err := d.ContainerExecAttach(context.Background(), execId.ID, dtypes.ExecStartCheck{})
+	d.ContainerExecStart(context.Background(), execId.ID, dtypes.ExecStartCheck{
+		ConsoleSize: &[2]uint{800, 4},
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	go func() {
+		defer rd.Close()
+		scanner := bufio.NewScanner(rd.Reader) // Scanner doesn't return newline byte
+		for scanner.Scan() {
+			sub <- types.OutputMsg{
+				Target:  cmd.Target,
+				Message: strings.ReplaceAll(scanner.Text(), "\n", ""),
+			}
+		}
+		// After command is done, run callback
+		if callback != nil {
+			callback()
+		}
+	}()
+
+	return execId.ID, nil
+}

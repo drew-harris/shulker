@@ -2,6 +2,7 @@ package commands
 
 import (
 	"bufio"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -17,11 +18,15 @@ type Command struct {
 }
 
 func RunExternalCommand(sub chan types.OutputMsg, command Command) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
 	cmd := exec.Command(command.Name, command.Args...)
 	if command.Dir != "" {
 		cmd.Dir = command.Dir
 	} else {
-		cmd.Dir = "/Users/drew/programs/mc-docker" // TODO: Make this the current working directory
+		cmd.Dir = cwd
 	}
 
 	// Display output
@@ -53,11 +58,15 @@ func RunExternalCommand(sub chan types.OutputMsg, command Command) error {
 }
 
 func GetCommandOutput(command Command) (string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
 	cmd := exec.Command(command.Name, command.Args...)
 	if command.Dir != "" {
 		cmd.Dir = command.Dir
 	} else {
-		cmd.Dir = "/Users/drew/programs/mc-docker" // TODO: Make this the current working directory
+		cmd.Dir = cwd
 	}
 
 	raw, err := cmd.CombinedOutput()
