@@ -196,7 +196,7 @@ func createContainer(d *client.Client) (container.CreateResponse, error) {
 	return c, err
 }
 
-func RunContainerCommandAsync(d *client.Client, cid string, sub chan types.OutputMsg, cmd commands.Command, callback func() error) (string, error) {
+func RunContainerCommand(d *client.Client, cid string, sub chan types.OutputMsg, cmd commands.Command) (string, error) {
 	var fullCmd []string
 	fullCmd = append(fullCmd, cmd.Name)
 	for _, arg := range cmd.Args {
@@ -223,20 +223,15 @@ func RunContainerCommandAsync(d *client.Client, cid string, sub chan types.Outpu
 		return "", err
 	}
 
-	go func() {
-		defer rd.Close()
-		scanner := bufio.NewScanner(rd.Reader) // Scanner doesn't return newline byte
-		for scanner.Scan() {
-			sub <- types.OutputMsg{
-				Target:  cmd.Target,
-				Message: strings.ReplaceAll(scanner.Text(), "\n", ""),
-			}
+	defer rd.Close()
+	scanner := bufio.NewScanner(rd.Reader) // Scanner doesn't return newline byte
+	for scanner.Scan() {
+		sub <- types.OutputMsg{
+			Target:  cmd.Target,
+			Message: strings.ReplaceAll(scanner.Text(), "\n", ""),
 		}
-		// After command is done, run callback
-		if callback != nil {
-			callback()
-		}
-	}()
+	}
+	// After command is done, run callback
 
 	return execId.ID, nil
 }

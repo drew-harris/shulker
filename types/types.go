@@ -21,3 +21,11 @@ type FinishedSetupCmd struct {
 }
 
 type CallbackFunc func() error
+
+type QuickMsg int
+
+const (
+	DoneBuilding QuickMsg = iota
+	BuildStarted
+	ErrorBuilding
+)

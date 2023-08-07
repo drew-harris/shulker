@@ -22,13 +22,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Test connection by getting containers
 	_, err = d.ImageList(context.Background(), types.ImageListOptions{All: true})
 	if err != nil {
 		fmt.Println(styles.Error.Render("\n   Can't connect to Docker, Is it running?"))
 		os.Exit(1)
 	}
 
-	// Test connection by getting containers
 	p := tea.NewProgram(model.InitialModel(d))
 
 	f, err := tea.LogToFile("debug.log", "debug")

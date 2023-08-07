@@ -61,11 +61,14 @@ func (m *MainModel) shutdown() tea.Cmd {
 
 func (m *MainModel) rebuildAllPlugins() tea.Cmd {
 	return func() tea.Msg {
-		docker.RunContainerCommandAsync(m.d, m.ConatainerId, m.outputChan, commands.Command{
+		_, err := docker.RunContainerCommand(m.d, m.ConatainerId, m.outputChan, commands.Command{
 			Target: types.BuildOutput,
 			Name:   "./build_all.sh",
-		}, nil)
+		})
+		if err != nil {
+			return types.ErrorBuilding
+		}
 
-		return nil // TODO: CHANGE
+		return types.BuildStarted
 	}
 }

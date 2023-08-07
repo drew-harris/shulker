@@ -25,9 +25,11 @@ type ServerExec struct {
 }
 
 type MainModel struct {
-	isLoading      bool
-	isShuttingDown bool
-	loadingModel   LoadingModel
+	isLoading          bool
+	isShuttingDown     bool
+	isBuilding         bool
+	isViewingBuildLogs bool
+	loadingModel       LoadingModel
 
 	width  int
 	height int
@@ -68,12 +70,17 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.reloadServer()
 			return m, nil
 
+		case "b":
+			m.isViewingBuildLogs = !m.isViewingBuildLogs
+			return m, nil
+
 		case "a":
 			// Print info in non alt screen
 			return m, tea.ExecProcess(exec.Command("docker", "attach", m.ConatainerId), func(err error) tea.Msg { return nil })
 		case "r":
 			// Print info in non alt screen
-			return m, m.rebuildAllPlugins()
+			m.isBuilding = true
+			return m, tea.Sequence(m.rebuildAllPlugins(), func() tea.Msg { return types.DoneBuilding })
 		}
 
 	case tea.WindowSizeMsg: // RESIZE
@@ -109,6 +116,19 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ServerExec = msg
 		return m, nil
 
+	case types.QuickMsg:
+		switch msg {
+		case types.DoneBuilding:
+			m.isBuilding = false
+			return m, nil
+		case types.BuildStarted:
+			m.isBuilding = true
+			return m, nil
+		case types.ErrorBuilding:
+			m.isBuilding = false
+			return m, nil
+		}
+
 	default:
 		var cmd tea.Cmd
 		m.loadingModel.spinner, cmd = m.loadingModel.spinner.Update(msg)
@@ -138,18 +158,26 @@ func (m MainModel) View() string {
 		)
 	} else if m.isShuttingDown {
 		return lipgloss.NewStyle().Width(m.width).Height(m.height).Align(lipgloss.Center).AlignVertical(lipgloss.Center).Render(m.loadingModel.spinner.View() + " Shutting down... Please be patient")
+	} else if m.isViewingBuildLogs {
+		return strings.Join(m.buildMessages, "\n")
 	}
 
 	// Main interface
 	// doc := strings.Builder{}
 
-	half := lipgloss.NewStyle().Width((m.width / 2) - 4)
+	half := lipgloss.NewStyle().Padding(3).Width(m.width).MaxWidth((m.width) - 4)
 
-	return lipgloss.JoinHorizontal(
-		lipgloss.Bottom,
-		half.Render(lastLines(m.serverMessages, m.height)),
-		half.Render(lastLines(m.buildMessages, m.height)),
-	)
+	serverLogs := half.Render(lastLines(m.serverMessages, m.height-4))
+
+	statusStyle := lipgloss.NewStyle().Width(m.width).Background(lipgloss.Color("#555"))
+	var statusBar string
+	if m.isBuilding {
+		statusBar = statusStyle.Copy().Foreground(lipgloss.Color("#ff0000")).Render(m.loadingModel.spinner.View() + "  BUILDING... ")
+	} else {
+		statusBar = statusStyle.Render("IDLE")
+	}
+
+	return serverLogs + "\n" + statusBar
 }
 
 func InitialModel(client *client.Client) MainModel {
