@@ -29,7 +29,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	p := tea.NewProgram(model.InitialModel(d))
+	p := tea.NewProgram(model.InitialModel(d), tea.WithAltScreen())
 
 	f, err := tea.LogToFile("debug.log", "debug")
 	if err != nil {

@@ -25,7 +25,18 @@ type ServerExec struct {
 	Connection dtypes.HijackedResponse
 }
 
+type ViewSelection int
+
+const (
+	loadingView ViewSelection = iota
+	normalView
+	shutdownView
+	buildLogsView
+	helpView
+)
+
 type MainModel struct {
+	// TODO: CHANGE VIEW SELECTION TO ENUM
 	isLoading          bool
 	isShuttingDown     bool
 	isBuilding         bool
@@ -100,14 +111,13 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.buildMessages = append(m.buildMessages, msg.Message)
 
 		}
-
 		return m, ListenForOutput(m.outputChan)
 
 	case types.FinishedSetupCmd:
 		m.ConatainerId = msg.ContainerId
 		m.ImageId = msg.ImageId
 		m.isLoading = false
-		return m, tea.Batch(tea.EnterAltScreen, m.startServerExecCmd())
+		return m, m.startServerExecCmd()
 
 	case ServerExec:
 		m.ServerExec = msg
@@ -146,7 +156,7 @@ func (m MainModel) View() string {
 			m.loadingModel.loadingOutput[i] = nonAlphanumericRegex.ReplaceAllString(str, "")
 		}
 		output := styles.Dimmed.Render(strings.Join(m.loadingModel.loadingOutput, "\n"))
-		screen := lipgloss.NewStyle().Margin(1).MaxWidth(m.width - 8)
+		screen := lipgloss.NewStyle().Margin(1).MaxWidth(m.width - 8).Height(m.height).AlignVertical(lipgloss.Center)
 		return screen.Render(
 			lipgloss.JoinVertical(
 				lipgloss.Left,

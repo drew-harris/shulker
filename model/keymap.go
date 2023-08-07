@@ -20,15 +20,16 @@ type KeyMap struct {
 var DefaultKeyMap = KeyMap{
 	Up: key.NewBinding(
 		key.WithKeys("k", "up"),        // actual keybindings
-		key.WithHelp("↑/k", "move up"), // corresponding help text
+		key.WithHelp("↑/k", "Move Up"), // corresponding help text
 	),
 	Down: key.NewBinding(
 		key.WithKeys("j", "down"),
-		key.WithHelp("↓/j", "move down"),
+		key.WithHelp("↓/j", "Move Down"),
 	),
 
 	Quit: key.NewBinding(
 		key.WithKeys("q", "esc", "ctrl+c"),
+		key.WithHelp("q / esc / ctrl+c", "Quit"),
 	),
 
 	Select: key.NewBinding(
@@ -37,10 +38,12 @@ var DefaultKeyMap = KeyMap{
 
 	Help: key.NewBinding(
 		key.WithKeys("h", "?"),
+		key.WithHelp("h", "Show Help"),
 	),
 
 	Attach: key.NewBinding(
 		key.WithKeys("a"),
+		key.WithHelp("a", "Attach To Server"),
 	),
 
 	ToggleBuildLogs: key.NewBinding(
