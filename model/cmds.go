@@ -3,7 +3,6 @@ package model
 import (
 	"bufio"
 	"context"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	dtypes "github.com/docker/docker/api/types"
@@ -12,37 +11,33 @@ import (
 
 func (m MainModel) startServerExecCmd() tea.Cmd {
 	return func() tea.Msg {
-		execId, err := m.d.ContainerExecCreate(context.TODO(), m.ConatainerId, dtypes.ExecConfig{
-			Cmd:          []string{"./start.sh"},
-			AttachStderr: true,
-			AttachStdout: true,
-			Tty:          true,
+		waiter, err := m.d.ContainerAttach(context.Background(), m.ConatainerId, dtypes.ContainerAttachOptions{
+			Stderr: true,
+			Stdout: true,
+			Stdin:  true,
+			Stream: true,
 		})
 		if err != nil {
-			panic(err)
-		}
-
-		rd, err := m.d.ContainerExecAttach(context.Background(), execId.ID, dtypes.ExecStartCheck{})
-		m.d.ContainerExecStart(context.Background(), execId.ID, dtypes.ExecStartCheck{
-			ConsoleSize: &[2]uint{800, 4},
-		})
-
-		if err != nil {
-			panic(err)
+			panic("Couldn't attach to container " + err.Error())
 		}
 
 		go func() {
-			scanner := bufio.NewScanner(rd.Reader) // Scanner doesn't return newline byte
+			scanner := bufio.NewScanner(waiter.Reader)
 			for scanner.Scan() {
 				m.outputChan <- types.OutputMsg{
 					Target:  types.ServerOutput,
-					Message: strings.ReplaceAll(scanner.Text(), "\n", ""),
+					Message: scanner.Text(),
 				}
 			}
 		}()
+
+		waiter.Conn.Write([]byte("./start.sh\n"))
 		return ServerExec{
-			ExecId:     execId.ID,
-			Connection: rd,
+			Connection: waiter,
 		}
 	}
+}
+
+func (m *MainModel) reloadServer() {
+	m.ServerExec.Connection.Conn.Write([]byte("help\n"))
 }

@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"os/exec"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -21,15 +22,15 @@ type LoadingModel struct {
 }
 
 type ServerExec struct {
-	ExecId     string
 	Connection dtypes.HijackedResponse
 }
 
 type ExecId string
 
 type MainModel struct {
-	isLoading    bool
-	loadingModel LoadingModel
+	isLoading      bool
+	isShuttingDown bool
+	loadingModel   LoadingModel
 
 	width  int
 	height int
@@ -43,6 +44,8 @@ type MainModel struct {
 
 	ServerExec ServerExec
 	OtherExecs []ExecId
+
+	serverMessages []string
 }
 
 func ListenForOutput(sub chan types.OutputMsg) tea.Cmd {
@@ -61,8 +64,12 @@ func (m MainModel) Init() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func (m *MainModel) Shutdown() {
-	m.d.ContainerStop(context.Background(), m.ConatainerId, container.StopOptions{})
+func (m *MainModel) Shutdown() tea.Cmd {
+	return func() tea.Msg {
+		m.ServerExec.Connection.Conn.Close() // Close running server
+		m.d.ContainerStop(context.Background(), m.ConatainerId, container.StopOptions{})
+		return tea.Quit()
+	}
 }
 
 func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -70,8 +77,15 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "esc", "ctrl+c": // QUIT
-			m.Shutdown()
-			return m, tea.Quit
+			m.isShuttingDown = true
+			return m, m.Shutdown()
+
+		case "h":
+			m.reloadServer()
+			return m, nil
+
+		case "a":
+			return m, tea.ExecProcess(exec.Command("docker", "attach", m.ConatainerId), func(err error) tea.Msg { return nil })
 		}
 
 	case tea.WindowSizeMsg: // RESIZE
@@ -88,7 +102,11 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case types.ErrorOutput:
 			m.errorMessages = append(m.errorMessages, msg.Message)
+		case types.ServerOutput:
+			m.serverMessages = append(m.serverMessages, msg.Message)
+
 		}
+
 		return m, ListenForOutput(m.outputChan)
 
 	case types.FinishedSetupCmd:
@@ -128,14 +146,16 @@ func (m MainModel) View() string {
 				errors,
 				lipgloss.JoinHorizontal(lipgloss.Top, loading, output)),
 		)
+	} else if m.isShuttingDown {
+		return lipgloss.NewStyle().Width(m.width).Height(m.height).Align(lipgloss.Center).AlignVertical(lipgloss.Center).Render(m.loadingModel.spinner.View() + " Shutting down... Please be patient")
 	}
 
 	errors := styles.Error.Render(strings.Join(m.errorMessages, "\n"))
 
-	return lipgloss.JoinVertical(
-		lipgloss.Center,
+	return lipgloss.JoinHorizontal(
+		lipgloss.Top,
 		errors,
-		"Hellow",
+		strings.Join(m.serverMessages, "\n"),
 	)
 }
 
