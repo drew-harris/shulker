@@ -92,7 +92,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Target {
 		case types.StartupOutput:
 			m.loadingModel.loadingOutput = append(m.loadingModel.loadingOutput, msg.Message)
-			if len(m.loadingModel.loadingOutput) > m.height/3 {
+			if len(m.loadingModel.loadingOutput) > m.height/2 {
 				m.loadingModel.loadingOutput = m.loadingModel.loadingOutput[1:]
 			}
 		case types.ErrorOutput:
@@ -137,7 +137,7 @@ func (m MainModel) View() string {
 	if m.isLoading {
 		errors := styles.Error.Render(strings.Join(m.errorMessages, "\n"))
 		loadingStyle := lipgloss.NewStyle().Padding(2).Bold(true).Italic(true)
-		loading := loadingStyle.Height(m.height / 3).Width(m.width / 3).Align(lipgloss.Center).AlignVertical(lipgloss.Center).Render(m.loadingModel.spinner.View() + "   Starting Server...")
+		loading := loadingStyle.Height(m.height / 2).Width(m.width / 3).Align(lipgloss.Center).AlignVertical(lipgloss.Center).Render(m.loadingModel.spinner.View() + "   Starting Server...")
 
 		var nonAlphanumericRegex = regexp.MustCompile(`[^\x20-\x7e]`)
 		for i, str := range m.loadingModel.loadingOutput {
@@ -158,12 +158,10 @@ func (m MainModel) View() string {
 	}
 
 	// Main interface
-	// doc := strings.Builder{}
+	doc := strings.Builder{}
+	var remainingHeight int = m.height
 
-	half := lipgloss.NewStyle().Padding(3).Width(m.width).MaxWidth((m.width) - 4)
-
-	serverLogs := half.Render(lastLines(m.serverMessages, m.height))
-
+	// Status bar
 	statusStyle := lipgloss.NewStyle().Width(m.width).Background(lipgloss.Color("#555"))
 	var statusBar string
 	if m.isBuilding {
@@ -171,14 +169,25 @@ func (m MainModel) View() string {
 	} else {
 		statusBar = statusStyle.Render("IDLE")
 	}
+	remainingHeight = remainingHeight - lipgloss.Height(statusBar)
 
-	return serverLogs + "\n" + statusBar
+	leftMenuContainer := lipgloss.NewStyle().Padding(1).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("#fff")).Width(8).Height(9)
+	menu := leftMenuContainer.Render("Menu")
+
+	logContainer := lipgloss.NewStyle().Padding(1).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("#fff")).Width(m.width - lipgloss.Width(menu) - 2).Height(remainingHeight - 4).MaxHeight(remainingHeight - 4).AlignVertical(lipgloss.Top)
+	serverLogs := logContainer.Render(lastLines(m.serverMessages, m.height-4))
+	// serverLogs := logContainer.Render("Helllo there")
+	middle := lipgloss.JoinHorizontal(lipgloss.Top, menu, serverLogs)
+
+	doc.WriteString(middle + "\n")
+	doc.WriteString(statusBar)
+
+	return doc.String()
 }
 
 func InitialModel(engine engine.Engine) MainModel {
 	s := spinner.New()
 	s.Spinner = spinner.Line
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#fff"))
 
 	model := MainModel{
 		isLoading:  true,

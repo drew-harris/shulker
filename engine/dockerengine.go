@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	dtypes "github.com/docker/docker/api/types"
@@ -188,9 +189,12 @@ func (e *DockerEngine) StartServer(sub chan types.OutputMsg) error {
 	go func() {
 		scanner := bufio.NewScanner(waiter.Reader)
 		for scanner.Scan() {
-			sub <- types.OutputMsg{
-				Target:  types.ServerOutput,
-				Message: scanner.Text(),
+			output := filterTerminalCharacters(scanner.Text())
+			if len(output) > 0 {
+				sub <- types.OutputMsg{
+					Target:  types.ServerOutput,
+					Message: output,
+				}
 			}
 		}
 	}()
@@ -220,4 +224,23 @@ func (e *DockerEngine) RebuildAllPlugins(sub chan types.OutputMsg) error {
 		e.execs = append(e.execs, result)
 		return nil
 	}
+}
+
+func filterTerminalCharacters(input string) string {
+	// Regular expression to match terminal escape sequences
+	// re := regexp.MustCompile(`\x1B\[[0-9;]*[a-zA-Z]`)
+	re := regexp.MustCompile(`\x1B\[([0-9]{1,2}(;[0-9]{1,2})*)?[m|K]`)
+
+	// Convert input to string and remove escape sequences
+	filteredOutput := re.ReplaceAllString(string(input), "")
+
+	// Remove additional control characters that might still be present
+	filteredOutput = strings.Map(func(r rune) rune {
+		if r >= 32 && r <= 126 {
+			return r
+		}
+		return -1
+	}, filteredOutput)
+
+	return filteredOutput
 }
