@@ -6,8 +6,9 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/drewharris/dockercraft/model"
-	"github.com/drewharris/dockercraft/styles"
+	"github.com/drewharris/shulker/engine"
+	"github.com/drewharris/shulker/model"
+	"github.com/drewharris/shulker/styles"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -29,7 +30,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	p := tea.NewProgram(model.InitialModel(d), tea.WithAltScreen())
+	dEngine := engine.DockerEngine{}
+
+	p := tea.NewProgram(model.InitialModel(d, &dEngine), tea.WithAltScreen())
 
 	f, err := tea.LogToFile("debug.log", "debug")
 	if err != nil {

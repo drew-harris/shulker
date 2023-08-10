@@ -11,9 +11,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	dtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"github.com/drewharris/dockercraft/docker"
-	"github.com/drewharris/dockercraft/styles"
-	"github.com/drewharris/dockercraft/types"
+	"github.com/drewharris/shulker/docker"
+	"github.com/drewharris/shulker/engine"
+	"github.com/drewharris/shulker/styles"
+	"github.com/drewharris/shulker/types"
 )
 
 type LoadingModel struct {
@@ -46,6 +47,8 @@ type MainModel struct {
 	width  int
 	height int
 	d      *client.Client
+
+	engine engine.Engine
 
 	ImageId      string
 	ConatainerId string
@@ -187,7 +190,7 @@ func (m MainModel) View() string {
 	return serverLogs + "\n" + statusBar
 }
 
-func InitialModel(client *client.Client) MainModel {
+func InitialModel(client *client.Client, engine engine.Engine) MainModel {
 	s := spinner.New()
 	s.Spinner = spinner.Line
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#fff"))
@@ -195,6 +198,7 @@ func InitialModel(client *client.Client) MainModel {
 	model := MainModel{
 		isLoading:  true,
 		d:          client,
+		engine:     engine,
 		outputChan: make(chan types.OutputMsg),
 		loadingModel: LoadingModel{
 			spinner:       s,

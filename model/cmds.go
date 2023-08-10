@@ -7,9 +7,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	dtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/drewharris/dockercraft/commands"
-	"github.com/drewharris/dockercraft/docker"
-	"github.com/drewharris/dockercraft/types"
+	"github.com/drewharris/shulker/commands"
+	"github.com/drewharris/shulker/docker"
+	"github.com/drewharris/shulker/types"
 )
 
 func ListenForOutput(sub chan types.OutputMsg) tea.Cmd {
