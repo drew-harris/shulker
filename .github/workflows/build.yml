@@ -10,12 +10,15 @@ permissions:
 jobs:
   release-on-push:
     runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.create_release.outputs.tag_name}}
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: rymndhng/release-on-push-action@master
+        id: create_release
         with:
-          bump_version_scheme: minor
+          bump_version_scheme: patch
   releases-matrix:
     needs: release-on-push
     name: Release Go Binary
@@ -39,6 +42,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goos: ${{ matrix.goos }}
           ldflags: -X "main.version=${{ env.APP_VERSION }}"
+          release_tag: ${{ needs.release-on-push.outputs.release_tag }}
           goarch: ${{ matrix.goarch }}
           binary_name: "shulker"
           compress_assets: "OFF"
