@@ -22,10 +22,13 @@ jobs:
             goos: windows
     steps:
       - uses: actions/checkout@v3
+      - name: Set APP_VERSION env
+        run: echo APP_VERSION=$(echo ${GITHUB_REF} | rev | cut -d'/' -f 1 | rev ) >> ${GITHUB_ENV}
       - uses: wangyoucao577/go-release-action@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goos: ${{ matrix.goos }}
+          ldflags: -X "main.version=${{ env.APP_VERSION }}
           goarch: ${{ matrix.goarch }}
           binary_name: "dockercraft"
           compress_assets: "OFF"
