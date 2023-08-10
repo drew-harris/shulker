@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/client"
 )
 
-var version string = "unversioned" // Replace with ldflags
+var version string = "unversioned"
 
 func main() {
 	flaggy.SetName("Shulker")
