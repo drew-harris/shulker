@@ -20,6 +20,7 @@ func CreateContainer(d *client.Client) (container.CreateResponse, error) {
 	if err != nil {
 		panic(err)
 	}
+
 	// Create container
 	hostConfig := &container.HostConfig{
 		PortBindings: nat.PortMap{
