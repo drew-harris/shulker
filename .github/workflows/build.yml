@@ -21,6 +21,7 @@ jobs:
           bump_version_scheme: patch
   releases-matrix:
     needs: release-on-push
+    if: needs.release-on-push.outputs.release_tag
     name: Release Go Binary
     runs-on: ubuntu-latest
     strategy:
