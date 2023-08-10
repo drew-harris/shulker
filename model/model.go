@@ -1,7 +1,6 @@
 package model
 
 import (
-	"os/exec"
 	"regexp"
 	"strings"
 
@@ -10,8 +9,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	dtypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
-	"github.com/drewharris/shulker/docker"
 	"github.com/drewharris/shulker/engine"
 	"github.com/drewharris/shulker/styles"
 	"github.com/drewharris/shulker/types"
@@ -46,19 +43,11 @@ type MainModel struct {
 
 	width  int
 	height int
-	d      *client.Client
 
 	engine engine.Engine
 
-	ImageId      string
-	ConatainerId string
-
-	outputChan    chan types.OutputMsg
-	errorMessages []string
-
-	ServerExec ServerExec
-	OtherExecs []string
-
+	outputChan     chan types.OutputMsg
+	errorMessages  []string
 	serverMessages []string
 	buildMessages  []string
 }
@@ -68,7 +57,7 @@ func (m MainModel) Init() tea.Cmd {
 	cmds = append(cmds, m.loadingModel.spinner.Tick)
 	cmds = append(cmds, ListenForOutput(m.outputChan))
 
-	cmds = append(cmds, docker.PrepareContainerCmd(m.outputChan, m.d))
+	cmds = append(cmds, m.ensureSetupCmd())
 
 	return tea.Batch(cmds...)
 }
@@ -79,7 +68,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, DefaultKeyMap.Quit):
 			m.isShuttingDown = true
-			return m, m.shutdown()
+			return m, m.Shutdown()
 
 		case key.Matches(msg, DefaultKeyMap.ToggleBuildLogs):
 			m.isViewingBuildLogs = !m.isViewingBuildLogs
@@ -87,7 +76,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, DefaultKeyMap.Attach):
 			// Print info in non alt screen
-			return m, tea.ExecProcess(exec.Command("docker", "attach", m.ConatainerId), func(err error) tea.Msg { return nil })
+			// return m, tea.ExecProcess(exec.Command("docker", "attach", m.ConatainerId), func(err error) tea.Msg { return nil })
 		case key.Matches(msg, DefaultKeyMap.RebuildAll):
 			// Print info in non alt screen
 			m.isBuilding = true
@@ -116,16 +105,6 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, ListenForOutput(m.outputChan)
 
-	case types.FinishedSetupCmd:
-		m.ConatainerId = msg.ContainerId
-		m.ImageId = msg.ImageId
-		m.isLoading = false
-		return m, m.startServerExecCmd()
-
-	case ServerExec:
-		m.ServerExec = msg
-		return m, nil
-
 	case types.QuickMsg:
 		switch msg {
 		case types.DoneBuilding:
@@ -137,6 +116,12 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case types.ErrorBuilding:
 			m.isBuilding = false
 			return m, nil
+		case types.FinishedSetup:
+			m.isLoading = false
+			return m, m.startServerCmd()
+		case types.FinishedServerStart:
+			return m, nil
+
 		}
 
 	default:
@@ -190,14 +175,13 @@ func (m MainModel) View() string {
 	return serverLogs + "\n" + statusBar
 }
 
-func InitialModel(client *client.Client, engine engine.Engine) MainModel {
+func InitialModel(engine engine.Engine) MainModel {
 	s := spinner.New()
 	s.Spinner = spinner.Line
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#fff"))
 
 	model := MainModel{
 		isLoading:  true,
-		d:          client,
 		engine:     engine,
 		outputChan: make(chan types.OutputMsg),
 		loadingModel: LoadingModel{

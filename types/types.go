@@ -15,11 +15,6 @@ var (
 	BuildOutput   OutputTarget = "build"
 )
 
-type FinishedSetupCmd struct {
-	ImageId     string
-	ContainerId string
-}
-
 type CallbackFunc func() error
 
 type QuickMsg int
@@ -28,4 +23,6 @@ const (
 	DoneBuilding QuickMsg = iota
 	BuildStarted
 	ErrorBuilding
+	FinishedSetup
+	FinishedServerStart
 )

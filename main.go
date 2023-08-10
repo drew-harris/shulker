@@ -30,9 +30,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	dEngine := engine.DockerEngine{}
+	dEngine := engine.NewDockerEngine(d)
 
-	p := tea.NewProgram(model.InitialModel(d, &dEngine), tea.WithAltScreen())
+	p := tea.NewProgram(model.InitialModel(dEngine), tea.WithAltScreen())
 
 	f, err := tea.LogToFile("debug.log", "debug")
 	if err != nil {

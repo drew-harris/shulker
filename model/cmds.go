@@ -1,14 +1,7 @@
 package model
 
 import (
-	"bufio"
-	"context"
-
 	tea "github.com/charmbracelet/bubbletea"
-	dtypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/drewharris/shulker/commands"
-	"github.com/drewharris/shulker/docker"
 	"github.com/drewharris/shulker/types"
 )
 
@@ -18,49 +11,41 @@ func ListenForOutput(sub chan types.OutputMsg) tea.Cmd {
 	}
 }
 
-func (m MainModel) startServerExecCmd() tea.Cmd {
+func (m *MainModel) ensureSetupCmd() tea.Cmd {
 	return func() tea.Msg {
-		waiter, err := m.d.ContainerAttach(context.Background(), m.ConatainerId, dtypes.ContainerAttachOptions{
-			Stderr: true,
-			Stdout: true,
-			Stdin:  true,
-			Stream: true,
-		})
+		err := m.engine.EnsureSetup(m.outputChan)
 		if err != nil {
-			panic("Couldn't attach to container " + err.Error())
+			panic(err)
 		}
 
-		go func() {
-			scanner := bufio.NewScanner(waiter.Reader)
-			for scanner.Scan() {
-				m.outputChan <- types.OutputMsg{
-					Target:  types.ServerOutput,
-					Message: scanner.Text(),
-				}
-			}
-		}()
-
-		waiter.Conn.Write([]byte("./start.sh\n"))
-		return ServerExec{
-			Connection: waiter,
-		}
+		return types.FinishedSetup
 	}
 }
 
-func (m *MainModel) shutdown() tea.Cmd {
+func (m *MainModel) startServerCmd() tea.Cmd {
 	return func() tea.Msg {
-		m.ServerExec.Connection.Conn.Close() // Close running server
-		m.d.ContainerStop(context.Background(), m.ConatainerId, container.StopOptions{})
+		err := m.engine.StartServer(m.outputChan)
+		if err != nil {
+			panic(err)
+		}
+
+		return types.FinishedServerStart
+	}
+}
+
+func (m *MainModel) Shutdown() tea.Cmd {
+	return func() tea.Msg {
+		err := m.engine.Shutdown()
+		if err != nil {
+			panic(err)
+		}
 		return tea.Quit()
 	}
 }
 
 func (m *MainModel) rebuildAllPlugins() tea.Cmd {
 	return func() tea.Msg {
-		_, err := docker.RunContainerCommand(m.d, m.ConatainerId, m.outputChan, commands.Command{
-			Target: types.BuildOutput,
-			Name:   "./build_all.sh",
-		})
+		err := m.engine.RebuildAllPlugins(m.outputChan)
 		if err != nil {
 			return types.ErrorBuilding
 		}

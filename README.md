@@ -18,3 +18,14 @@
 - Start container
 - Check if all plugins built?
 - Build plugins if not
+
+## Engine Responsibilities
+
+- Ensure that all files are in the right place on startup
+  - Docker: prepareContainerCmd
+- Start server and maintain connection (attach)
+- Rebuild plugins and send update logs
+- Gracefully shutdown
+- Send input to spigot server for commands
+
+- Report if you can attach

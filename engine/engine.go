@@ -1,12 +1,12 @@
 package engine
 
+import "github.com/drewharris/shulker/types"
+
 type Engine interface {
-	StartServerCmd() error
-}
-
-type DockerEngine struct {
-}
-
-func (e *DockerEngine) StartServerCmd() error {
-	return nil
+	EnsureSetup(sub chan types.OutputMsg) error
+	StartServer(sub chan types.OutputMsg) error
+	RebuildAllPlugins(sub chan types.OutputMsg) error
+	Shutdown() error
+	// SendCommandToSpigot(cmd string) error
+	CanAttach() bool
 }
