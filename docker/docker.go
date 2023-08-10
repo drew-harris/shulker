@@ -13,9 +13,9 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
-	"github.com/drewharris/dockercraft/commands"
-	"github.com/drewharris/dockercraft/styles"
-	"github.com/drewharris/dockercraft/types"
+	"github.com/drewharris/shulker/commands"
+	"github.com/drewharris/shulker/styles"
+	"github.com/drewharris/shulker/types"
 )
 
 func PrepareContainerCmd(sub chan types.OutputMsg, d *client.Client) tea.Cmd {
@@ -29,7 +29,7 @@ func PrepareContainerCmd(sub chan types.OutputMsg, d *client.Client) tea.Cmd {
 		var imageId = ""
 		for _, image := range images {
 			tag := image.RepoTags[0]
-			if tag == "dockercraft:latest" {
+			if tag == "shulker:latest" {
 				imageId = image.ID
 			}
 		}
@@ -38,7 +38,7 @@ func PrepareContainerCmd(sub chan types.OutputMsg, d *client.Client) tea.Cmd {
 		if imageId == "" { // If there is no image
 			commands.RunExternalCommand(sub, commands.Command{
 				Name:   "docker",
-				Args:   []string{"build", "-t", "dockercraft", "-f", "Dockerfile.dev", "."},
+				Args:   []string{"build", "-t", "shulker", "-f", "Dockerfile.dev", "."},
 				Target: types.StartupOutput,
 			})
 		}
@@ -189,10 +189,10 @@ func createContainer(d *client.Client) (container.CreateResponse, error) {
 		},
 	}
 	c, err := d.ContainerCreate(context.Background(), &container.Config{
-		Image:     "dockercraft:latest",
+		Image:     "shulker:latest",
 		Tty:       true,
 		OpenStdin: true,
-	}, hostConfig, nil, nil, "dockercraft_c")
+	}, hostConfig, nil, nil, "shulker_c")
 	return c, err
 }
 

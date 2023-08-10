@@ -1,4 +1,4 @@
-module github.com/drewharris/dockercraft
+module github.com/drewharris/shulker
 
 go 1.19
 
