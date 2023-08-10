@@ -28,7 +28,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goos: ${{ matrix.goos }}
-          ldflags: -X "main.version=${{ env.APP_VERSION }}
+          ldflags: -X "main.version=${{ env.APP_VERSION }}"
           goarch: ${{ matrix.goarch }}
-          binary_name: "dockercraft"
+          binary_name: "shulker"
           compress_assets: "OFF"
