@@ -31,7 +31,6 @@ func main() {
 	var program *tea.Program
 
 	if noDocker {
-		fmt.Println("Not using docker")
 		hostEngine, err := engine.NewHostEngine()
 		if err != nil {
 			panic(err)

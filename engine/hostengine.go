@@ -2,10 +2,13 @@ package engine
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 
+	"github.com/drewharris/shulker/commands"
 	"github.com/drewharris/shulker/config"
 	"github.com/drewharris/shulker/types"
 	"github.com/xyproto/unzip"
@@ -24,7 +27,7 @@ func NewHostEngine() (*HostEngine, error) {
 }
 
 func (h *HostEngine) DownloadShulkerbox() error {
-	out, err := os.Create(h.pwd + "/shulkerbox.zip")
+	out, err := os.Create(filepath.FromSlash(h.pwd + "/shulkerbox.zip"))
 	if err != nil {
 		return err
 	}
@@ -42,7 +45,8 @@ func (h *HostEngine) DownloadShulkerbox() error {
 }
 
 func (h *HostEngine) EnsureSetup(log types.Logger) error {
-	_, err := os.Stat(h.pwd + "/shulkerbox/spigot")
+	log(h.pwd)
+	_, err := os.Stat(filepath.FromSlash(h.pwd + "/.shulkerbox/spigot.jar"))
 	if errors.Is(err, os.ErrNotExist) {
 		log("Downloading shulkerbox...")
 		// Download file
@@ -68,13 +72,56 @@ func (h *HostEngine) EnsureSetup(log types.Logger) error {
 		return err // Worst case option
 	}
 
+	// Rebuild all plugins
+	err = h.RebuildAllPlugins(log)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h *HostEngine) RebuildAllPlugins(log types.Logger) error {
+	err := commands.RunExternalCommand(log, commands.Command{
+		Name: "mvn",
+		Args: []string{"clean", "package"},
+	})
+	if err != nil {
+		fmt.Println(err.Error())
+		panic(err)
+	}
+
+	// copyFileContents(h.pwd + "/plugins/")
+
+	// Move plugins
+
 	return nil
 }
 
 // Not implemented
-func (h *HostEngine) StartServer(log types.Logger) error       { return nil }
-func (h *HostEngine) RebuildAllPlugins(log types.Logger) error { return nil }
-func (h *HostEngine) Shutdown() error                          { return nil }
+func (h *HostEngine) StartServer(log types.Logger) error { return nil }
+func (h *HostEngine) Shutdown() error                    { return nil }
+func (h *HostEngine) CanAttach() bool                    { return false }
 
-// SendCommandToSpigot(cmd string) error
-func (h *HostEngine) CanAttach() bool { return false }
+func copyFileContents(src, dst string) (err error) {
+	in, err := os.Open(src)
+	if err != nil {
+		return
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return
+	}
+	defer func() {
+		cerr := out.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
+	if _, err = io.Copy(out, in); err != nil {
+		return
+	}
+	err = out.Sync()
+	return
+}
