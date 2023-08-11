@@ -74,7 +74,7 @@ func (h *HostEngine) EnsureSetup(log types.Logger) error {
 	}
 
 	// Rebuild all plugins
-	err = h.RebuildAllPlugins(log)
+	err = h.RebuildAllPlugins(log, false)
 	if err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func (h *HostEngine) EnsureSetup(log types.Logger) error {
 	return nil
 }
 
-func (h *HostEngine) RebuildAllPlugins(log types.Logger) error {
+func (h *HostEngine) RebuildAllPlugins(log types.Logger, disableCache bool) error {
 	log("Building all plugins...")
 	err := commands.RunExternalCommand(log, commands.Command{
 		Name: "mvn",

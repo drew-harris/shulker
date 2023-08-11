@@ -3,6 +3,7 @@ package model
 import (
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
@@ -41,6 +42,8 @@ type MainModel struct {
 
 	engine engine.Engine
 	config config.Config
+	keys   KeyMap
+	help   help.Model
 
 	outputChan     chan types.OutputMsg
 	errorMessages  []string
@@ -64,21 +67,25 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, DefaultKeyMap.Quit):
+		case key.Matches(msg, m.keys.Quit):
 			m.isShuttingDown = true
 			return m, m.Shutdown()
 
-		case key.Matches(msg, DefaultKeyMap.ToggleBuildLogs):
+		case key.Matches(msg, m.keys.ToggleBuildLogs):
 			m.isViewingBuildLogs = !m.isViewingBuildLogs
 			return m, nil
 
-		case key.Matches(msg, DefaultKeyMap.Attach):
+		case key.Matches(msg, m.keys.Attach):
 			// Print info in non alt screen
 			// return m, tea.ExecProcess(exec.Command("docker", "attach", m.ConatainerId), func(err error) tea.Msg { return nil })
-		case key.Matches(msg, DefaultKeyMap.RebuildAll):
+		case key.Matches(msg, m.keys.RebuildAll):
 			// Print info in non alt screen
 			m.isBuilding = true
-			return m, tea.Sequence(m.rebuildAllPlugins(), func() tea.Msg { return types.DoneBuilding })
+			return m, tea.Sequence(m.rebuildAllPlugins(false), func() tea.Msg { return types.DoneBuilding })
+		case key.Matches(msg, m.keys.RebuildAllNoCache):
+			// Print info in non alt screen
+			m.isBuilding = true
+			return m, tea.Sequence(m.rebuildAllPlugins(true), func() tea.Msg { return types.DoneBuilding })
 		}
 
 	case tea.WindowSizeMsg: // RESIZE
@@ -149,6 +156,8 @@ func InitialModel(engine engine.Engine, config config.Config) MainModel {
 		isLoading:  true,
 		engine:     engine,
 		outputChan: outputChan,
+		keys:       DefaultKeyMap,
+		help:       help.New(),
 		config:     config,
 		loadingModel: LoadingModel{
 			spinner:       s,

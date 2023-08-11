@@ -122,7 +122,7 @@ func (e *DockerEngine) EnsureSetup(log types.Logger) error {
 
 	if notBuilt {
 		execId, err := e.client.ContainerExecCreate(context.TODO(), containerId, dtypes.ExecConfig{
-			Cmd:          []string{"./build_all.sh"},
+			Cmd:          []string{"./build.sh"},
 			AttachStderr: true,
 			AttachStdout: true,
 			Tty:          true,
@@ -185,9 +185,14 @@ func (e *DockerEngine) Shutdown() error {
 	return err
 }
 
-func (e *DockerEngine) RebuildAllPlugins(log types.Logger) error {
+func (e *DockerEngine) RebuildAllPlugins(log types.Logger, disableCache bool) error {
+	var arg []string
+	if disableCache {
+		arg = append(arg, "nocache")
+	}
 	result, err := docker.RunContainerCommand(e.client, e.containerId, log, commands.Command{
-		Name: "./build_all.sh",
+		Name: "./build.sh",
+		Args: arg,
 	})
 
 	if err != nil {
