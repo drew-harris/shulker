@@ -43,9 +43,9 @@ func (m *MainModel) Shutdown() tea.Cmd {
 	}
 }
 
-func (m *MainModel) rebuildAllPlugins() tea.Cmd {
+func (m *MainModel) rebuildAllPlugins(disableCache bool) tea.Cmd {
 	return func() tea.Msg {
-		err := m.engine.RebuildAllPlugins(m.loggers.build)
+		err := m.engine.RebuildAllPlugins(m.loggers.build, disableCache)
 		if err != nil {
 			return types.ErrorBuilding
 		}

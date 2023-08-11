@@ -39,17 +39,16 @@ func (m MainModel) View() string {
 	statusStyle := lipgloss.NewStyle().Width(m.width).Background(lipgloss.Color("#555"))
 	var statusBar string
 	if m.isBuilding {
-		statusBar = statusStyle.Copy().Background(lipgloss.Color("#ab009d")).Render(m.loadingModel.spinner.View() + "  BUILDING... ")
+		statusBar = statusStyle.Copy().Background(lipgloss.Color("#ab009d")).Render("  " + m.loadingModel.spinner.View() + "  BUILDING... ")
 	} else {
-		statusBar = statusStyle.Render("IDLE")
+		statusBar = statusStyle.Render("  IDLE")
 	}
 
-	leftMenuContainer := lipgloss.NewStyle().Padding(1).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("#fff")).Height(9)
+	leftMenuContainer := lipgloss.NewStyle().Padding(1).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("#fff")).Height(m.height - 3)
 	menu := leftMenuContainer.Render("Shulker Menu\n* Rebuild\n* Restart")
 
-	logContainer := lipgloss.NewStyle().Padding(1).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("#fff")).Width(m.width - lipgloss.Width(menu) - 2).AlignVertical(lipgloss.Top)
+	logContainer := lipgloss.NewStyle().Padding(2).Width(m.width - lipgloss.Width(menu) - 2).AlignVertical(lipgloss.Top)
 	serverLogs := logContainer.Render(lastLines(m.serverMessages, m.height-1))
-	// serverLogs := logContainer.Render("Helllo there")
 	middle := lipgloss.JoinHorizontal(lipgloss.Bottom, menu, serverLogs)
 
 	doc.WriteString(middle + "\n")
