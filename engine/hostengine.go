@@ -1,13 +1,14 @@
 package engine
 
 import (
-	"archive/zip"
 	"errors"
+	"io"
 	"net/http"
 	"os"
 
 	"github.com/drewharris/shulker/config"
 	"github.com/drewharris/shulker/types"
+	"github.com/xyproto/unzip"
 )
 
 type HostEngine struct {
@@ -23,7 +24,7 @@ func NewHostEngine() (*HostEngine, error) {
 }
 
 func (h *HostEngine) DownloadShulkerbox() error {
-	out, err := os.Create(h.pwd + "/shulker_data.zip")
+	out, err := os.Create(h.pwd + "/shulkerbox.zip")
 	if err != nil {
 		return err
 	}
@@ -35,36 +36,34 @@ func (h *HostEngine) DownloadShulkerbox() error {
 	}
 	defer resp.Body.Close()
 
+	io.Copy(out, resp.Body)
+
 	return nil
 }
 
 func (h *HostEngine) EnsureSetup(log types.Logger) error {
-	pwd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	_, err = os.Stat(h.pwd + "/shulker_data/spigot")
+	_, err := os.Stat(h.pwd + "/shulkerbox/spigot")
 	if errors.Is(err, os.ErrNotExist) {
+		log("Downloading shulkerbox...")
 		// Download file
 		err := h.DownloadShulkerbox()
 		if err != nil {
 			return err
 		}
-		reader, err := zip.OpenReader(pwd + "/shulker_data.zip")
-
-		// Extract file
-		defer reader.Close()
-		for _, file := range reader.File {
-			err := os.MkdirAll(pwd+"/shulker_data/"+file.Name, 0755)
-			if err != nil {
-				return err
-			}
-		}
-
+		log("Downloaded!")
+		log("Unzipping...")
+		err = unzip.Extract("shulkerbox.zip", ".shulkerbox")
 		if err != nil {
 			return err
 		}
+		log("Extracted.")
 
+		// Delete zip file
+		log("Removing archive")
+		err = os.Remove("shulkerbox.zip")
+		if err != nil {
+			return err
+		}
 	} else if err != nil {
 		return err // Worst case option
 	}
