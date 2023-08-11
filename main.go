@@ -6,6 +6,7 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/drewharris/shulker/config"
 	"github.com/drewharris/shulker/engine"
 	"github.com/drewharris/shulker/model"
 	"github.com/drewharris/shulker/styles"
@@ -30,12 +31,17 @@ func main() {
 
 	var program *tea.Program
 
+	config, err := config.ReadConfigFromFile("./shulkerconfig.yaml")
+	if err != nil {
+		panic(err)
+	}
+
 	if noDocker {
-		hostEngine, err := engine.NewHostEngine()
+		hostEngine, err := engine.NewHostEngine(config)
 		if err != nil {
 			panic(err)
 		}
-		program = tea.NewProgram(model.InitialModel(hostEngine), tea.WithAltScreen())
+		program = tea.NewProgram(model.InitialModel(hostEngine, config), tea.WithAltScreen())
 	} else {
 		os.Setenv("DOCKER_API_VERSION", "1.41")
 
@@ -54,7 +60,7 @@ func main() {
 
 		dEngine := engine.NewDockerEngine(d)
 
-		program = tea.NewProgram(model.InitialModel(dEngine), tea.WithAltScreen())
+		program = tea.NewProgram(model.InitialModel(dEngine, config), tea.WithAltScreen())
 	}
 
 	// Docker

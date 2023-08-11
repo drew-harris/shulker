@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	dtypes "github.com/docker/docker/api/types"
+	"github.com/drewharris/shulker/config"
 	"github.com/drewharris/shulker/engine"
 	"github.com/drewharris/shulker/types"
 )
@@ -39,6 +40,7 @@ type MainModel struct {
 	height int
 
 	engine engine.Engine
+	config config.Config
 
 	outputChan     chan types.OutputMsg
 	errorMessages  []string
@@ -138,7 +140,7 @@ func generateLogFn(sub chan types.OutputMsg, target types.OutputTarget) func(msg
 	}
 }
 
-func InitialModel(engine engine.Engine) MainModel {
+func InitialModel(engine engine.Engine, config config.Config) MainModel {
 	s := spinner.New()
 	s.Spinner = spinner.Line
 
@@ -147,6 +149,7 @@ func InitialModel(engine engine.Engine) MainModel {
 		isLoading:  true,
 		engine:     engine,
 		outputChan: outputChan,
+		config:     config,
 		loadingModel: LoadingModel{
 			spinner:       s,
 			loadingOutput: []string{},

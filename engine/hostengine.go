@@ -15,15 +15,16 @@ import (
 )
 
 type HostEngine struct {
-	pwd string
+	pwd    string
+	config config.Config
 }
 
-func NewHostEngine() (*HostEngine, error) {
+func NewHostEngine(config config.Config) (*HostEngine, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
-	return &HostEngine{pwd: pwd}, nil
+	return &HostEngine{pwd: pwd, config: config}, nil
 }
 
 func (h *HostEngine) DownloadShulkerbox() error {
@@ -33,7 +34,7 @@ func (h *HostEngine) DownloadShulkerbox() error {
 	}
 	defer out.Close()
 
-	resp, err := http.Get(config.ShulkerboxUrl)
+	resp, err := http.Get(h.config.ShulkerboxUrl)
 	if err != nil {
 		return err
 	}
@@ -82,26 +83,43 @@ func (h *HostEngine) EnsureSetup(log types.Logger) error {
 }
 
 func (h *HostEngine) RebuildAllPlugins(log types.Logger) error {
+	log("Building all plugins...")
 	err := commands.RunExternalCommand(log, commands.Command{
 		Name: "mvn",
-		Args: []string{"clean", "package"},
+		Args: []string{"package", "-Dmaven.build.cache.enabled=false"},
 	})
 	if err != nil {
 		fmt.Println(err.Error())
 		panic(err)
 	}
 
-	// copyFileContents(h.pwd + "/plugins/")
+	for _, pluginPath := range h.config.PluginCopyPaths {
+		err = copyFileContents(filepath.FromSlash(pluginPath), filepath.FromSlash(h.pwd+"/.shulkerbox/plugins/"+filepath.Base(pluginPath)))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-	// Move plugins
-
+func (h *HostEngine) StartServer(log types.Logger) error {
+	log("Building all plugins...")
+	var baseDir = filepath.FromSlash(h.pwd + "/.shulkerbox/")
+	err := commands.RunExternalCommand(log, commands.Command{
+		Name: "java",
+		Dir:  baseDir,
+		Args: []string{"-Xms1024M", "-Xmx2048M", "-Dfile.encoding=UTF-8", "-jar", "spigot.jar", "--world-dir", "./worlds", "nogui"},
+	})
+	if err != nil {
+		fmt.Println(err.Error())
+		return err
+	}
 	return nil
 }
 
 // Not implemented
-func (h *HostEngine) StartServer(log types.Logger) error { return nil }
-func (h *HostEngine) Shutdown() error                    { return nil }
-func (h *HostEngine) CanAttach() bool                    { return false }
+func (h *HostEngine) Shutdown() error { return nil }
+func (h *HostEngine) CanAttach() bool { return false }
 
 func copyFileContents(src, dst string) (err error) {
 	in, err := os.Open(src)
