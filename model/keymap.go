@@ -12,9 +12,10 @@ type KeyMap struct {
 	Help   key.Binding
 	Quit   key.Binding
 
-	Attach          key.Binding
-	ToggleBuildLogs key.Binding
-	RebuildAll      key.Binding
+	Attach            key.Binding
+	ToggleBuildLogs   key.Binding
+	RebuildAll        key.Binding
+	RebuildAllNoCache key.Binding
 }
 
 var DefaultKeyMap = KeyMap{
@@ -52,5 +53,9 @@ var DefaultKeyMap = KeyMap{
 
 	RebuildAll: key.NewBinding(
 		key.WithKeys("r"),
+	),
+
+	RebuildAllNoCache: key.NewBinding(
+		key.WithKeys("R"),
 	),
 }
