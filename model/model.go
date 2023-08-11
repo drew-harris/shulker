@@ -22,14 +22,6 @@ type ServerExec struct {
 
 type ViewSelection int
 
-const (
-	loadingView ViewSelection = iota
-	normalView
-	shutdownView
-	buildLogsView
-	helpView
-)
-
 type MainModel struct {
 	// TODO: CHANGE VIEW SELECTION TO ENUM
 	isLoading          bool

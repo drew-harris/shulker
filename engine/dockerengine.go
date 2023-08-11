@@ -21,7 +21,6 @@ type DockerEngine struct {
 	client           *client.Client
 	spigotConnection dtypes.HijackedResponse
 	containerId      string
-	imageId          string
 
 	execs []string
 }

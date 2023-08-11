@@ -5,6 +5,15 @@ import (
 	"github.com/drewharris/shulker/types"
 )
 
+func generateLogFn(sub chan types.OutputMsg, target types.OutputTarget) func(msg string) {
+	return func(msg string) {
+		sub <- types.OutputMsg{
+			Target:  target,
+			Message: msg,
+		}
+	}
+}
+
 func ListenForOutput(sub chan types.OutputMsg) tea.Cmd {
 	return func() tea.Msg {
 		return types.OutputMsg(<-sub)

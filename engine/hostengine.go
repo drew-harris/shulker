@@ -14,6 +14,9 @@ type HostEngine struct {
 
 func DownloadShulkerbox(pwd string) error {
 	out, err := os.Create(pwd + "/shulker_data.zip")
+	if err != nil {
+		return err
+	}
 	defer out.Close()
 
 	resp, err := http.Get(config.ShulkerboxUrl)

@@ -55,9 +55,7 @@ func CreateContainer(d *client.Client) (container.CreateResponse, error) {
 func RunContainerCommand(d *client.Client, cid string, sub chan types.OutputMsg, cmd commands.Command) (string, error) {
 	var fullCmd []string
 	fullCmd = append(fullCmd, cmd.Name)
-	for _, arg := range cmd.Args {
-		fullCmd = append(fullCmd, arg)
-	}
+	fullCmd = append(fullCmd, cmd.Args...)
 
 	execId, err := d.ContainerExecCreate(context.TODO(), cid, dtypes.ExecConfig{
 		Cmd:          fullCmd,
