@@ -13,7 +13,7 @@ func ListenForOutput(sub chan types.OutputMsg) tea.Cmd {
 
 func (m *MainModel) ensureSetupCmd() tea.Cmd {
 	return func() tea.Msg {
-		err := m.engine.EnsureSetup(m.loggers.build)
+		err := m.engine.EnsureSetup(m.loggers.startup)
 		if err != nil {
 			panic(err)
 		}
