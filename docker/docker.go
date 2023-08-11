@@ -52,12 +52,10 @@ func CreateContainer(d *client.Client) (container.CreateResponse, error) {
 	return c, err
 }
 
-func RunContainerCommand(d *client.Client, cid string, sub chan types.OutputMsg, cmd commands.Command) (string, error) {
+func RunContainerCommand(d *client.Client, cid string, log types.Logger, cmd commands.Command) (string, error) {
 	var fullCmd []string
 	fullCmd = append(fullCmd, cmd.Name)
-	for _, arg := range cmd.Args {
-		fullCmd = append(fullCmd, arg)
-	}
+	fullCmd = append(fullCmd, cmd.Args...)
 
 	execId, err := d.ContainerExecCreate(context.TODO(), cid, dtypes.ExecConfig{
 		Cmd:          fullCmd,
@@ -82,10 +80,7 @@ func RunContainerCommand(d *client.Client, cid string, sub chan types.OutputMsg,
 	defer rd.Close()
 	scanner := bufio.NewScanner(rd.Reader) // Scanner doesn't return newline byte
 	for scanner.Scan() {
-		sub <- types.OutputMsg{
-			Target:  cmd.Target,
-			Message: strings.ReplaceAll(scanner.Text(), "\n", ""),
-		}
+		log(strings.ReplaceAll(scanner.Text(), "\n", ""))
 	}
 	// After command is done, run callback
 

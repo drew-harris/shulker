@@ -34,7 +34,6 @@ func (m MainModel) View() string {
 
 	// Main interface
 	doc := strings.Builder{}
-	var remainingHeight int = m.height
 
 	// Status bar
 	statusStyle := lipgloss.NewStyle().Width(m.width).Background(lipgloss.Color("#555"))
@@ -44,7 +43,6 @@ func (m MainModel) View() string {
 	} else {
 		statusBar = statusStyle.Render("IDLE")
 	}
-	remainingHeight = remainingHeight - lipgloss.Height(statusBar)
 
 	leftMenuContainer := lipgloss.NewStyle().Padding(1).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("#fff")).Height(9)
 	menu := leftMenuContainer.Render("Shulker Menu\n* Rebuild\n* Restart")

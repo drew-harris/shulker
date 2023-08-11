@@ -10,7 +10,6 @@ type OutputTarget string
 var (
 	StartupOutput OutputTarget = "startup"
 	ErrorOutput   OutputTarget = "error"
-	InfoOutput    OutputTarget = "info"
 	ServerOutput  OutputTarget = "server"
 	BuildOutput   OutputTarget = "build"
 )
@@ -26,3 +25,5 @@ const (
 	FinishedSetup
 	FinishedServerStart
 )
+
+type Logger func(msg string)

@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	dtypes "github.com/docker/docker/api/types"
+	"github.com/drewharris/shulker/config"
 	"github.com/drewharris/shulker/engine"
 	"github.com/drewharris/shulker/types"
 )
@@ -20,15 +21,12 @@ type ServerExec struct {
 	Connection dtypes.HijackedResponse
 }
 
-type ViewSelection int
-
-const (
-	loadingView ViewSelection = iota
-	normalView
-	shutdownView
-	buildLogsView
-	helpView
-)
+type Loggers struct {
+	error   types.Logger
+	build   types.Logger
+	server  types.Logger
+	startup types.Logger
+}
 
 type MainModel struct {
 	// TODO: CHANGE VIEW SELECTION TO ENUM
@@ -42,11 +40,14 @@ type MainModel struct {
 	height int
 
 	engine engine.Engine
+	config config.Config
 
 	outputChan     chan types.OutputMsg
 	errorMessages  []string
 	serverMessages []string
 	buildMessages  []string
+
+	loggers Loggers
 }
 
 func (m MainModel) Init() tea.Cmd {
@@ -130,17 +131,34 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func InitialModel(engine engine.Engine) MainModel {
+func generateLogFn(sub chan types.OutputMsg, target types.OutputTarget) func(msg string) {
+	return func(msg string) {
+		sub <- types.OutputMsg{
+			Target:  target,
+			Message: msg,
+		}
+	}
+}
+
+func InitialModel(engine engine.Engine, config config.Config) MainModel {
 	s := spinner.New()
 	s.Spinner = spinner.Line
 
+	outputChan := make(chan types.OutputMsg)
 	model := MainModel{
 		isLoading:  true,
 		engine:     engine,
-		outputChan: make(chan types.OutputMsg),
+		outputChan: outputChan,
+		config:     config,
 		loadingModel: LoadingModel{
 			spinner:       s,
 			loadingOutput: []string{},
+		},
+		loggers: Loggers{
+			error:   generateLogFn(outputChan, types.ErrorOutput),
+			build:   generateLogFn(outputChan, types.BuildOutput),
+			server:  generateLogFn(outputChan, types.ServerOutput),
+			startup: generateLogFn(outputChan, types.StartupOutput),
 		},
 	}
 

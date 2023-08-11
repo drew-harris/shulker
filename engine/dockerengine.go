@@ -3,6 +3,7 @@ package engine
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -21,7 +22,6 @@ type DockerEngine struct {
 	client           *client.Client
 	spigotConnection dtypes.HijackedResponse
 	containerId      string
-	imageId          string
 
 	execs []string
 }
@@ -36,7 +36,7 @@ func (e *DockerEngine) CanAttach() bool {
 	return true
 }
 
-func (e *DockerEngine) EnsureSetup(sub chan types.OutputMsg) error {
+func (e *DockerEngine) EnsureSetup(log types.Logger) error {
 	images, err := e.client.ImageList(context.Background(), dtypes.ImageListOptions{All: true})
 	if err != nil {
 		fmt.Println(styles.Error.Render("\n   Can't connect to Docker, Is it running?"))
@@ -53,10 +53,9 @@ func (e *DockerEngine) EnsureSetup(sub chan types.OutputMsg) error {
 
 	// - Check if image exists -> build
 	if imageId == "" { // If there is no image
-		err := commands.RunExternalCommand(sub, commands.Command{
-			Name:   "docker",
-			Args:   []string{"build", "-t", "shulker", "-f", "Dockerfile.dev", "."},
-			Target: types.StartupOutput,
+		err := commands.RunExternalCommand(log, commands.Command{
+			Name: "docker",
+			Args: []string{"build", "-t", "shulker", "-f", "Dockerfile.dev", "."},
 		})
 		if err != nil {
 			panic(err)
@@ -68,10 +67,7 @@ func (e *DockerEngine) EnsureSetup(sub chan types.OutputMsg) error {
 		All: true,
 	})
 	if err != nil {
-		sub <- types.OutputMsg{
-			Target:  types.ErrorOutput,
-			Message: err.Error(),
-		}
+		return err
 	}
 
 	var containerId = ""
@@ -89,16 +85,9 @@ func (e *DockerEngine) EnsureSetup(sub chan types.OutputMsg) error {
 
 		// Trim whitespace of output
 		containerId = c.ID
-		sub <- types.OutputMsg{
-			Target:  types.StartupOutput,
-			Message: "Created container: " + containerId,
-		}
+		log("Created container: " + containerId)
 	} else {
-		sub <- types.OutputMsg{
-			Target:  types.StartupOutput,
-			Message: "Found Container: " + containerId,
-		}
-
+		log("Found container: " + containerId)
 	}
 
 	e.containerId = containerId
@@ -106,15 +95,9 @@ func (e *DockerEngine) EnsureSetup(sub chan types.OutputMsg) error {
 	// - Start container
 	err = e.client.ContainerStart(context.Background(), containerId, dtypes.ContainerStartOptions{})
 	if err != nil {
-		sub <- types.OutputMsg{
-			Target:  types.ErrorOutput,
-			Message: "Could not start container: " + err.Error(),
-		}
+		return errors.New("Could not start container, " + err.Error())
 	}
-	sub <- types.OutputMsg{
-		Target:  types.StartupOutput,
-		Message: "Container started...",
-	}
+	log("Container started...")
 
 	// - Check if all plugins built?
 	// var pluginsBuilt bool
@@ -159,23 +142,16 @@ func (e *DockerEngine) EnsureSetup(sub chan types.OutputMsg) error {
 		defer rd.Close()
 		scanner := bufio.NewScanner(rd.Reader) // Scanner doesn't return newline byte
 		for scanner.Scan() {
-			sub <- types.OutputMsg{
-				Target:  types.StartupOutput,
-				Message: strings.ReplaceAll(scanner.Text(), "\n", ""),
-			}
+			log(strings.ReplaceAll(scanner.Text(), "\n", ""))
 		}
 
 	}
 
-	sub <- types.OutputMsg{
-		Target:  types.StartupOutput,
-		Message: "All Plugins Built!",
-	}
-
+	log("All Plugins Built!")
 	return nil
 }
 
-func (e *DockerEngine) StartServer(sub chan types.OutputMsg) error {
+func (e *DockerEngine) StartServer(log types.Logger) error {
 	waiter, err := e.client.ContainerAttach(context.Background(), e.containerId, dtypes.ContainerAttachOptions{
 		Stderr: true,
 		Stdout: true,
@@ -191,10 +167,7 @@ func (e *DockerEngine) StartServer(sub chan types.OutputMsg) error {
 		for scanner.Scan() {
 			output := filterTerminalCharacters(scanner.Text())
 			if len(output) > 0 {
-				sub <- types.OutputMsg{
-					Target:  types.ServerOutput,
-					Message: output,
-				}
+				log(output)
 			}
 		}
 	}()
@@ -212,10 +185,9 @@ func (e *DockerEngine) Shutdown() error {
 	return err
 }
 
-func (e *DockerEngine) RebuildAllPlugins(sub chan types.OutputMsg) error {
-	result, err := docker.RunContainerCommand(e.client, e.containerId, sub, commands.Command{
-		Target: types.BuildOutput,
-		Name:   "./build_all.sh",
+func (e *DockerEngine) RebuildAllPlugins(log types.Logger) error {
+	result, err := docker.RunContainerCommand(e.client, e.containerId, log, commands.Command{
+		Name: "./build_all.sh",
 	})
 
 	if err != nil {

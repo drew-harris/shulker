@@ -13,7 +13,7 @@ func ListenForOutput(sub chan types.OutputMsg) tea.Cmd {
 
 func (m *MainModel) ensureSetupCmd() tea.Cmd {
 	return func() tea.Msg {
-		err := m.engine.EnsureSetup(m.outputChan)
+		err := m.engine.EnsureSetup(m.loggers.startup)
 		if err != nil {
 			panic(err)
 		}
@@ -24,7 +24,7 @@ func (m *MainModel) ensureSetupCmd() tea.Cmd {
 
 func (m *MainModel) startServerCmd() tea.Cmd {
 	return func() tea.Msg {
-		err := m.engine.StartServer(m.outputChan)
+		err := m.engine.StartServer(m.loggers.server)
 		if err != nil {
 			panic(err)
 		}
@@ -45,7 +45,7 @@ func (m *MainModel) Shutdown() tea.Cmd {
 
 func (m *MainModel) rebuildAllPlugins() tea.Cmd {
 	return func() tea.Msg {
-		err := m.engine.RebuildAllPlugins(m.outputChan)
+		err := m.engine.RebuildAllPlugins(m.loggers.build)
 		if err != nil {
 			return types.ErrorBuilding
 		}
