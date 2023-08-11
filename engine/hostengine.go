@@ -44,6 +44,7 @@ func (h *HostEngine) EnsureSetup(sub chan types.OutputMsg) error {
 	return nil
 }
 
+// Not implemented
 func (h *HostEngine) StartServer(sub chan types.OutputMsg) error       { return nil }
 func (h *HostEngine) RebuildAllPlugins(sub chan types.OutputMsg) error { return nil }
 func (h *HostEngine) Shutdown() error                                  { return nil }

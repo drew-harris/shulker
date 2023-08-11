@@ -6,18 +6,16 @@ import (
 	"os/exec"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/drewharris/shulker/types"
 )
 
 type Command struct {
-	Name   string
-	Args   []string
-	Dir    string
-	Target types.OutputTarget
+	Name string
+	Args []string
+	Dir  string
 }
 
-func RunExternalCommand(sub chan types.OutputMsg, command Command) error {
+func RunExternalCommand(log types.Logger, command Command) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -45,10 +43,7 @@ func RunExternalCommand(sub chan types.OutputMsg, command Command) error {
 
 	scanner := bufio.NewScanner(stdout) // Scanner doesn't return newline byte
 	for scanner.Scan() {
-		sub <- types.OutputMsg{
-			Target:  command.Target,
-			Message: strings.ReplaceAll(scanner.Text(), "\n", ""),
-		}
+		log(strings.ReplaceAll(scanner.Text(), "\n", ""))
 	}
 
 	if err := cmd.Wait(); err != nil {
@@ -74,17 +69,4 @@ func GetCommandOutput(command Command) (string, error) {
 		return "", err
 	}
 	return string(raw), nil
-}
-
-func TeaRunCommandWithOutput(sub chan types.OutputMsg, command Command, endMsg tea.Msg) tea.Cmd {
-	return func() tea.Msg {
-		err := RunExternalCommand(sub, command)
-		if err != nil {
-			sub <- types.OutputMsg{
-				Target:  types.ErrorOutput,
-				Message: err.Error(),
-			}
-		}
-		return endMsg
-	}
 }

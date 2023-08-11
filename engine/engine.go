@@ -3,9 +3,9 @@ package engine
 import "github.com/drewharris/shulker/types"
 
 type Engine interface {
-	EnsureSetup(sub chan types.OutputMsg) error
-	StartServer(sub chan types.OutputMsg) error
-	RebuildAllPlugins(sub chan types.OutputMsg) error
+	EnsureSetup(log types.Logger) error
+	StartServer(log types.Logger) error
+	RebuildAllPlugins(log types.Logger) error
 	Shutdown() error
 	// SendCommandToSpigot(cmd string) error
 	CanAttach() bool
