@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"archive/zip"
 	"errors"
 	"net/http"
 	"os"
@@ -10,10 +11,19 @@ import (
 )
 
 type HostEngine struct {
+	pwd string
 }
 
-func DownloadShulkerbox(pwd string) error {
-	out, err := os.Create(pwd + "/shulker_data.zip")
+func NewHostEngine() (*HostEngine, error) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	return &HostEngine{pwd: pwd}, nil
+}
+
+func (h *HostEngine) DownloadShulkerbox() error {
+	out, err := os.Create(h.pwd + "/shulker_data.zip")
 	if err != nil {
 		return err
 	}
@@ -28,15 +38,33 @@ func DownloadShulkerbox(pwd string) error {
 	return nil
 }
 
-func (h *HostEngine) EnsureSetup(sub chan types.OutputMsg) error {
+func (h *HostEngine) EnsureSetup(log types.Logger) error {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
-	_, err = os.Stat(pwd + "/shulker_data/spigot")
+	_, err = os.Stat(h.pwd + "/shulker_data/spigot")
 	if errors.Is(err, os.ErrNotExist) {
 		// Download file
-		DownloadShulkerbox(pwd)
+		err := h.DownloadShulkerbox()
+		if err != nil {
+			return err
+		}
+		reader, err := zip.OpenReader(pwd + "/shulker_data.zip")
+
+		// Extract file
+		defer reader.Close()
+		for _, file := range reader.File {
+			err := os.MkdirAll(pwd+"/shulker_data/"+file.Name, 0755)
+			if err != nil {
+				return err
+			}
+		}
+
+		if err != nil {
+			return err
+		}
+
 	} else if err != nil {
 		return err // Worst case option
 	}
@@ -45,9 +73,9 @@ func (h *HostEngine) EnsureSetup(sub chan types.OutputMsg) error {
 }
 
 // Not implemented
-func (h *HostEngine) StartServer(sub chan types.OutputMsg) error       { return nil }
-func (h *HostEngine) RebuildAllPlugins(sub chan types.OutputMsg) error { return nil }
-func (h *HostEngine) Shutdown() error                                  { return nil }
+func (h *HostEngine) StartServer(log types.Logger) error       { return nil }
+func (h *HostEngine) RebuildAllPlugins(log types.Logger) error { return nil }
+func (h *HostEngine) Shutdown() error                          { return nil }
 
 // SendCommandToSpigot(cmd string) error
 func (h *HostEngine) CanAttach() bool { return false }

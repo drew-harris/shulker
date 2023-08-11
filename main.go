@@ -32,7 +32,11 @@ func main() {
 
 	if noDocker {
 		fmt.Println("Not using docker")
-		return
+		hostEngine, err := engine.NewHostEngine()
+		if err != nil {
+			panic(err)
+		}
+		program = tea.NewProgram(model.InitialModel(hostEngine), tea.WithAltScreen())
 	} else {
 		os.Setenv("DOCKER_API_VERSION", "1.41")
 
