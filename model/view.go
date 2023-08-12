@@ -55,20 +55,18 @@ func (m MainModel) View() string {
 
 	statusBar = statusStyle.Render(statusText)
 
-	var logs string
-	if m.viewMode == serverView {
-		logs = strings.Join(m.serverMessages, "\n")
-	} else if m.viewMode == buildView {
-		logs = strings.Join(m.buildMessages, "\n")
-	}
-
 	bottom := lipgloss.JoinVertical(lipgloss.Left, lipgloss.NewStyle().PaddingLeft(3).Render(m.help.View(m.keys)), statusBar)
 
-	logsContainer := lipgloss.NewStyle().MaxHeight(m.height-lipgloss.Height(bottom)).Height(m.height-lipgloss.Height(bottom)).Padding(0, 2, 1, 3).AlignVertical(lipgloss.Bottom)
+	logsContainer := lipgloss.NewStyle().Height(m.height-lipgloss.Height(bottom)-4).Padding(1, 3).Border(lipgloss.NormalBorder()).Width(m.width - 2)
+	// logs := logsContainer.Render(m.viewport.View())
+	m.viewport.Height = m.height - lipgloss.Height(bottom) - 6
+	m.viewport.Width = m.width - 8
+	m.viewport.GotoBottom()
+	logs := logsContainer.Render(
+		m.viewport.View(),
+	)
 
-	logs = logsContainer.Render(lastLines(logs, m.height-lipgloss.Height(bottom)-4))
-
-	doc.WriteString(logs + "\n")
+	doc.WriteString(logs + "\n" + "\n")
 	doc.WriteString(bottom)
 
 	return doc.String()
