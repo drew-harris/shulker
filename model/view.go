@@ -57,12 +57,11 @@ func (m MainModel) View() string {
 
 	bottom := lipgloss.JoinVertical(lipgloss.Left, lipgloss.NewStyle().PaddingLeft(3).Render(m.help.View(m.keys)), statusBar)
 
-	logsContainer := lipgloss.NewStyle().Height(m.height-lipgloss.Height(bottom)-5).Padding(1, 3).Border(lipgloss.NormalBorder()).Width(m.width - 2)
-	m.viewport.Width = m.width - 2
-	m.viewport.Height = m.height - lipgloss.Height(bottom) - 7
-	logs := logsContainer.Render(m.viewport.View())
+	// logsContainer := lipgloss.NewStyle().Height(m.height-lipgloss.Height(bottom)-5).Padding(1, 3).Border(lipgloss.NormalBorder()).Width(m.width - 2)
+	// logs := logsContainer.Render(m.viewport.View())
+	logs := m.viewport.View()
 
-	doc.WriteString(logs + "\n" + "\n")
+	doc.WriteString(logs + "\n")
 	doc.WriteString(bottom)
 
 	return doc.String()
