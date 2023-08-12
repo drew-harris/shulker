@@ -1,8 +1,6 @@
 package model
 
 import (
-	"strings"
-
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -12,11 +10,6 @@ import (
 	"github.com/drewharris/shulker/engine"
 	"github.com/drewharris/shulker/types"
 )
-
-type LoadingModel struct {
-	spinner       spinner.Model
-	loadingOutput []string
-}
 
 type ServerExec struct {
 	Connection dtypes.HijackedResponse
@@ -29,33 +22,41 @@ type Loggers struct {
 	startup types.Logger
 }
 
-type MainModel struct {
-	// TODO: CHANGE VIEW SELECTION TO ENUM
-	isLoading          bool
-	isShuttingDown     bool
-	isBuilding         bool
-	isViewingBuildLogs bool
-	loadingModel       LoadingModel
+type viewMode int
 
+const (
+	serverView viewMode = iota
+	startupView
+	buildView
+	shutdownView
+	testView
+)
+
+type MainModel struct {
 	width  int
 	height int
 
-	engine engine.Engine
-	config config.Config
-	keys   KeyMap
-	help   help.Model
+	engine   engine.Engine
+	config   config.Config
+	keys     KeyMap
+	help     help.Model
+	viewMode viewMode
+
+	isBuilding bool
 
 	outputChan     chan types.OutputMsg
 	errorMessages  []string
 	serverMessages []string
 	buildMessages  []string
+	loadingOutput  []string
 
 	loggers Loggers
+	spinner spinner.Model
 }
 
 func (m MainModel) Init() tea.Cmd {
 	var cmds []tea.Cmd
-	cmds = append(cmds, m.loadingModel.spinner.Tick)
+	cmds = append(cmds, m.spinner.Tick)
 	cmds = append(cmds, ListenForOutput(m.outputChan))
 
 	cmds = append(cmds, m.ensureSetupCmd())
@@ -67,12 +68,19 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
+		case msg.String() == "t":
+			m.viewMode = testView
+			return m, nil
 		case key.Matches(msg, m.keys.Quit):
-			m.isShuttingDown = true
+			m.viewMode = shutdownView
 			return m, m.Shutdown()
 
 		case key.Matches(msg, m.keys.ToggleBuildLogs):
-			m.isViewingBuildLogs = !m.isViewingBuildLogs
+			if m.viewMode == serverView {
+				m.viewMode = buildView
+			} else if m.viewMode == buildView {
+				m.viewMode = serverView
+			}
 			return m, nil
 
 		case key.Matches(msg, m.keys.Attach):
@@ -96,9 +104,9 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case types.OutputMsg:
 		switch msg.Target {
 		case types.StartupOutput:
-			m.loadingModel.loadingOutput = append(m.loadingModel.loadingOutput, msg.Message)
-			if len(m.loadingModel.loadingOutput) > m.height/2 {
-				m.loadingModel.loadingOutput = m.loadingModel.loadingOutput[1:]
+			m.loadingOutput = append(m.loadingOutput, msg.Message)
+			if len(m.loadingOutput) > m.height/2 {
+				m.loadingOutput = m.loadingOutput[1:]
 			}
 		case types.ErrorOutput:
 			m.errorMessages = append(m.errorMessages, msg.Message)
@@ -122,7 +130,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.isBuilding = false
 			return m, nil
 		case types.FinishedSetup:
-			m.isLoading = false
+			m.viewMode = serverView
 			return m, m.startServerCmd()
 		case types.FinishedServerStart:
 			return m, nil
@@ -131,7 +139,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	default:
 		var cmd tea.Cmd
-		m.loadingModel.spinner, cmd = m.loadingModel.spinner.Update(msg)
+		m.spinner, cmd = m.spinner.Update(msg)
 		return m, cmd
 	}
 
@@ -153,16 +161,13 @@ func InitialModel(engine engine.Engine, config config.Config) MainModel {
 
 	outputChan := make(chan types.OutputMsg)
 	model := MainModel{
-		isLoading:  true,
 		engine:     engine,
+		viewMode:   startupView,
 		outputChan: outputChan,
 		keys:       DefaultKeyMap,
 		help:       help.New(),
 		config:     config,
-		loadingModel: LoadingModel{
-			spinner:       s,
-			loadingOutput: []string{},
-		},
+		spinner:    s,
 		loggers: Loggers{
 			error:   generateLogFn(outputChan, types.ErrorOutput),
 			build:   generateLogFn(outputChan, types.BuildOutput),
@@ -174,12 +179,12 @@ func InitialModel(engine engine.Engine, config config.Config) MainModel {
 	return model
 }
 
-func lastLines(strs []string, amt int) string {
+func lastLines(strs []string, amt int) []string {
 	startIndex := len(strs) - amt
 	if startIndex < 0 {
 		startIndex = 0
 	}
 
 	lastElements := strs[startIndex:]
-	return strings.Join(lastElements, "\n")
+	return lastElements
 }

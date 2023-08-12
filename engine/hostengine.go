@@ -1,12 +1,15 @@
 package engine
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/drewharris/shulker/commands"
 	"github.com/drewharris/shulker/config"
@@ -17,6 +20,7 @@ import (
 type HostEngine struct {
 	pwd    string
 	config config.Config
+	server *exec.Cmd
 }
 
 func NewHostEngine(config config.Config) (*HostEngine, error) {
@@ -103,22 +107,50 @@ func (h *HostEngine) RebuildAllPlugins(log types.Logger, disableCache bool) erro
 }
 
 func (h *HostEngine) StartServer(log types.Logger) error {
-	log("Building all plugins...")
 	var baseDir = filepath.FromSlash(h.pwd + "/.shulkerbox/")
-	err := commands.RunExternalCommand(log, commands.Command{
+	cmdtmp := commands.Command{
 		Name: "java",
 		Dir:  baseDir,
 		Args: []string{"-Xms1024M", "-Xmx2048M", "-Dfile.encoding=UTF-8", "-jar", "spigot.jar", "--world-dir", "./worlds", "nogui"},
-	})
+	}
+
+	cmd := exec.Command(cmdtmp.Name, cmdtmp.Args...)
+	cmd.Dir = baseDir
+
+	// Display output
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		fmt.Println(err.Error())
 		return err
 	}
+
+	// Combine stdout and stderr so that both are captured
+	cmd.Stderr = cmd.Stdout
+
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	scanner := bufio.NewScanner(stdout) // Scanner doesn't return newline byte
+	for scanner.Scan() {
+		log(strings.ReplaceAll(scanner.Text(), "\n", ""))
+	}
+
+	h.server = cmd
 	return nil
 }
 
 // Not implemented
-func (h *HostEngine) Shutdown() error { return nil }
+func (h *HostEngine) Shutdown() error {
+	if h.server != nil {
+		if h.server.Process != nil {
+			err := h.server.Process.Kill()
+			return err
+		}
+	}
+	return nil
+}
+
 func (h *HostEngine) CanAttach() bool { return false }
 
 func copyFileContents(src, dst string) (err error) {
