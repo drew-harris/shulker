@@ -8,6 +8,6 @@ type Engine interface {
 	// TODO: boolean for cache
 	RebuildAllPlugins(log types.Logger, disableCache bool) error
 	Shutdown() error
-	// SendCommandToSpigot(cmd string) error
+	SendCommandToSpigot(cmd string) error
 	CanAttach() bool
 }

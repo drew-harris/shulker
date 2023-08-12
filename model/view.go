@@ -29,42 +29,47 @@ func (m MainModel) View() string {
 	} else if m.viewMode == shutdownView {
 		return lipgloss.NewStyle().Width(m.width).Height(m.height).Align(lipgloss.Center).AlignVertical(lipgloss.Center).Render(m.spinner.View() + " Shutting down... Please be patient")
 	} else if m.viewMode == testView {
-		return lipgloss.NewStyle().Width(5).MaxHeight(2).Render("He\nllo there indiviudal")
+		return lipgloss.NewStyle().Width(40).MaxHeight(30).Margin(3).Padding(1).Border(lipgloss.NormalBorder()).Render(lastLines(strings.Join(m.serverMessages, "\n"), 10))
 	}
 
 	// Main interface
 	doc := strings.Builder{}
 
 	// Status bar
-	statusStyle := lipgloss.NewStyle().Width(m.width).Background(lipgloss.Color("#555"))
+	statusStyle := lipgloss.NewStyle().Padding(1, 1).Width(m.width)
 	var statusBar string
+	var statusText string
 	if m.isBuilding {
-		statusBar = statusStyle.Copy().Background(lipgloss.Color("#ab009d")).Render("  " + m.spinner.View() + "  BUILDING... ")
+		statusText = styles.Purple.Render("  " + m.spinner.View() + "  BUILDING... ")
 	} else {
-		statusBar = statusStyle.Render("  IDLE")
-	}
-
-	menu := styles.LeftMenuContainer.Copy().Height(m.height - 3).Render("Shulker Menu\n* Rebuild\n* Restart")
-
-	remainingWidth := m.width - lipgloss.Width(menu)
-
-	var serverLogStrings []string
-	if m.viewMode == buildView {
-		for _, line := range lastLines(m.buildMessages, m.height-2) {
-			serverLogStrings = append(serverLogStrings, styles.InlineLog.Copy().MaxWidth(remainingWidth-20).Render(line))
-		}
-	} else {
-		for _, line := range lastLines(m.serverMessages, m.height-2) {
-			serverLogStrings = append(serverLogStrings, styles.InlineLog.Copy().MaxWidth(remainingWidth-20).Render(line))
+		if m.reloadSpigotOnBuild {
+			statusText = "  Reload Spigot on build: " + styles.Highlight.Render("ON") + "  "
+		} else {
+			statusText = "  Reload Spigot on build: " + "OFF" + " "
 		}
 	}
 
-	serverLogs := styles.LogContainer.Copy().MaxWidth(remainingWidth - 1).Width(remainingWidth - 3).MaxHeight(m.height - 10).Render(lipgloss.JoinVertical(lipgloss.Left, serverLogStrings...))
+	if m.cmdInput.Focused() {
+		statusText += " " + m.cmdInput.View()
+	}
 
-	middle := lipgloss.JoinHorizontal(lipgloss.Bottom, menu, serverLogs)
+	statusBar = statusStyle.Render(statusText)
 
-	doc.WriteString(middle + "\n")
-	doc.WriteString(statusBar)
+	var logs string
+	if m.viewMode == serverView {
+		logs = strings.Join(m.serverMessages, "\n")
+	} else if m.viewMode == buildView {
+		logs = strings.Join(m.buildMessages, "\n")
+	}
+
+	bottom := lipgloss.JoinVertical(lipgloss.Left, lipgloss.NewStyle().PaddingLeft(3).Render(m.help.View(m.keys)), statusBar)
+
+	logsContainer := lipgloss.NewStyle().MaxHeight(m.height-lipgloss.Height(bottom)).Height(m.height-lipgloss.Height(bottom)).Padding(0, 2, 1, 3).AlignVertical(lipgloss.Bottom)
+
+	logs = logsContainer.Render(lastLines(logs, m.height-lipgloss.Height(bottom)-4))
+
+	doc.WriteString(logs + "\n")
+	doc.WriteString(bottom)
 
 	return doc.String()
 }

@@ -151,7 +151,9 @@ func (h *HostEngine) Shutdown() error {
 	return nil
 }
 
-func (h *HostEngine) CanAttach() bool { return false }
+// Not Implemented
+func (h *HostEngine) CanAttach() bool                      { return false }
+func (h *HostEngine) SendCommandToSpigot(cmd string) error { return nil }
 
 func copyFileContents(src, dst string) (err error) {
 	in, err := os.Open(src)
