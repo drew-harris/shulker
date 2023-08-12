@@ -6,17 +6,13 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	dtypes "github.com/docker/docker/api/types"
 	"github.com/drewharris/shulker/config"
 	"github.com/drewharris/shulker/engine"
 	"github.com/drewharris/shulker/types"
 )
-
-type LoadingModel struct {
-	spinner       spinner.Model
-	loadingOutput []string
-}
 
 type ServerExec struct {
 	Connection dtypes.HijackedResponse
@@ -29,36 +25,48 @@ type Loggers struct {
 	startup types.Logger
 }
 
-type MainModel struct {
-	// TODO: CHANGE VIEW SELECTION TO ENUM
-	isLoading          bool
-	isShuttingDown     bool
-	isBuilding         bool
-	isViewingBuildLogs bool
-	loadingModel       LoadingModel
+type viewMode int
 
+const (
+	serverView viewMode = iota
+	startupView
+	buildView
+	shutdownView
+	testView
+)
+
+type MainModel struct {
 	width  int
 	height int
 
-	engine engine.Engine
-	config config.Config
-	keys   KeyMap
-	help   help.Model
+	engine   engine.Engine
+	config   config.Config
+	keys     KeyMap
+	viewMode viewMode
+
+	isBuilding bool
 
 	outputChan     chan types.OutputMsg
 	errorMessages  []string
 	serverMessages []string
 	buildMessages  []string
+	loadingOutput  []string
 
 	loggers Loggers
+
+	reloadSpigotOnBuild bool
+
+	spinner  spinner.Model
+	help     help.Model
+	cmdInput textinput.Model
 }
 
 func (m MainModel) Init() tea.Cmd {
 	var cmds []tea.Cmd
-	cmds = append(cmds, m.loadingModel.spinner.Tick)
+	cmds = append(cmds, m.spinner.Tick)
 	cmds = append(cmds, ListenForOutput(m.outputChan))
-
 	cmds = append(cmds, m.ensureSetupCmd())
+	cmds = append(cmds, textinput.Blink)
 
 	return tea.Batch(cmds...)
 }
@@ -66,18 +74,41 @@ func (m MainModel) Init() tea.Cmd {
 func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+
+		if m.cmdInput.Focused() {
+			if msg.String() == tea.KeyEnter.String() {
+				cmd := m.cmdInput.Value()
+				m.cmdInput.SetValue("")
+				m.cmdInput.Blur()
+				return m, tea.Sequence(m.sendCmdToSpigot(cmd))
+			} else if msg.String() == tea.KeyEsc.String() {
+				m.cmdInput.SetValue("")
+				m.cmdInput.Blur()
+				return m, nil
+			} else {
+				newInput, cmd := m.cmdInput.Update(msg)
+				m.cmdInput = newInput
+				return m, cmd
+			}
+		}
+
 		switch {
 		case key.Matches(msg, m.keys.Quit):
-			m.isShuttingDown = true
+			m.viewMode = shutdownView
 			return m, m.Shutdown()
 
 		case key.Matches(msg, m.keys.ToggleBuildLogs):
-			m.isViewingBuildLogs = !m.isViewingBuildLogs
+			if m.viewMode == serverView {
+				m.viewMode = buildView
+			} else if m.viewMode == buildView {
+				m.viewMode = serverView
+			}
 			return m, nil
 
-		case key.Matches(msg, m.keys.Attach):
+		case key.Matches(msg, m.keys.SendCmdToSpigot):
 			// Print info in non alt screen
-			// return m, tea.ExecProcess(exec.Command("docker", "attach", m.ConatainerId), func(err error) tea.Msg { return nil })
+			m.cmdInput.Focus()
+			return m, nil
 		case key.Matches(msg, m.keys.RebuildAll):
 			// Print info in non alt screen
 			m.isBuilding = true
@@ -86,6 +117,12 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Print info in non alt screen
 			m.isBuilding = true
 			return m, tea.Sequence(m.rebuildAllPlugins(true), func() tea.Msg { return types.DoneBuilding })
+		case key.Matches(msg, m.keys.Help):
+			m.help.ShowAll = !m.help.ShowAll
+			return m, nil
+		case key.Matches(msg, m.keys.ToggleReloadServerEveryBuild):
+			m.reloadSpigotOnBuild = !m.reloadSpigotOnBuild
+			return m, nil
 		}
 
 	case tea.WindowSizeMsg: // RESIZE
@@ -96,9 +133,9 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case types.OutputMsg:
 		switch msg.Target {
 		case types.StartupOutput:
-			m.loadingModel.loadingOutput = append(m.loadingModel.loadingOutput, msg.Message)
-			if len(m.loadingModel.loadingOutput) > m.height/2 {
-				m.loadingModel.loadingOutput = m.loadingModel.loadingOutput[1:]
+			m.loadingOutput = append(m.loadingOutput, msg.Message)
+			if len(m.loadingOutput) > m.height/2 {
+				m.loadingOutput = m.loadingOutput[1:]
 			}
 		case types.ErrorOutput:
 			m.errorMessages = append(m.errorMessages, msg.Message)
@@ -114,7 +151,12 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg {
 		case types.DoneBuilding:
 			m.isBuilding = false
-			return m, nil
+			if m.reloadSpigotOnBuild {
+				m.loggers.server("trying to reload")
+				return m, m.sendCmdToSpigot("reload")
+			} else {
+				return m, nil
+			}
 		case types.BuildStarted:
 			m.isBuilding = true
 			return m, nil
@@ -122,7 +164,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.isBuilding = false
 			return m, nil
 		case types.FinishedSetup:
-			m.isLoading = false
+			m.viewMode = serverView
 			return m, m.startServerCmd()
 		case types.FinishedServerStart:
 			return m, nil
@@ -131,7 +173,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	default:
 		var cmd tea.Cmd
-		m.loadingModel.spinner, cmd = m.loadingModel.spinner.Update(msg)
+		m.spinner, cmd = m.spinner.Update(msg)
 		return m, cmd
 	}
 
@@ -152,17 +194,18 @@ func InitialModel(engine engine.Engine, config config.Config) MainModel {
 	s.Spinner = spinner.Line
 
 	outputChan := make(chan types.OutputMsg)
+	ti := textinput.New()
+	ti.Placeholder = "Send command to server..."
 	model := MainModel{
-		isLoading:  true,
-		engine:     engine,
-		outputChan: outputChan,
-		keys:       DefaultKeyMap,
-		help:       help.New(),
-		config:     config,
-		loadingModel: LoadingModel{
-			spinner:       s,
-			loadingOutput: []string{},
-		},
+		engine:              engine,
+		viewMode:            startupView,
+		outputChan:          outputChan,
+		keys:                DefaultKeyMap,
+		help:                help.New(),
+		config:              config,
+		spinner:             s,
+		cmdInput:            ti,
+		reloadSpigotOnBuild: false,
 		loggers: Loggers{
 			error:   generateLogFn(outputChan, types.ErrorOutput),
 			build:   generateLogFn(outputChan, types.BuildOutput),
@@ -174,12 +217,17 @@ func InitialModel(engine engine.Engine, config config.Config) MainModel {
 	return model
 }
 
-func lastLines(strs []string, amt int) string {
+func lastLines(strs string, amt int) string {
 	startIndex := len(strs) - amt
 	if startIndex < 0 {
 		startIndex = 0
 	}
 
-	lastElements := strs[startIndex:]
-	return strings.Join(lastElements, "\n")
+	lines := strings.Split(strs, "\n")
+	if len(lines) > amt {
+		lines = lines[len(lines)-amt:]
+	}
+
+	strs = strings.Join(lines, "\n")
+	return strs
 }

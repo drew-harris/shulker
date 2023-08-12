@@ -203,6 +203,11 @@ func (e *DockerEngine) RebuildAllPlugins(log types.Logger, disableCache bool) er
 	}
 }
 
+func (e *DockerEngine) SendCommandToSpigot(cmd string) error {
+	_, err := e.spigotConnection.Conn.Write([]byte(cmd + "\n"))
+	return err
+}
+
 func filterTerminalCharacters(input string) string {
 	// Regular expression to match terminal escape sequences
 	// re := regexp.MustCompile(`\x1B\[[0-9;]*[a-zA-Z]`)

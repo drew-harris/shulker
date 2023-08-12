@@ -53,3 +53,13 @@ func (m *MainModel) rebuildAllPlugins(disableCache bool) tea.Cmd {
 		return types.BuildStarted
 	}
 }
+
+func (m *MainModel) sendCmdToSpigot(cmd string) tea.Cmd {
+	return func() tea.Msg {
+		err := m.engine.SendCommandToSpigot(cmd)
+		if err != nil {
+			return types.ErrorBuilding
+		}
+		return nil
+	}
+}
