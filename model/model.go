@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	dtypes "github.com/docker/docker/api/types"
 	"github.com/drewharris/shulker/config"
 	"github.com/drewharris/shulker/engine"
@@ -78,11 +77,6 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 
-		if msg.String() == "u" {
-			m.viewport.GotoBottom()
-			return m, nil
-		}
-
 		if m.cmdInput.Focused() {
 			if msg.String() == tea.KeyEnter.String() {
 				cmd := m.cmdInput.Value()
@@ -140,8 +134,8 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg: // RESIZE
 		m.width = msg.Width
 		m.height = msg.Height
-		m.viewport.Height = 30
-		m.viewport.Width = 90
+		m.viewport.Height = 999
+		m.viewport.Width = 999
 
 	// Channel output messages
 	case types.OutputMsg:
@@ -218,8 +212,7 @@ func InitialModel(engine engine.Engine, config config.Config) MainModel {
 	ti := textinput.New()
 	ti.Placeholder = "Send command to server..."
 
-	vp := viewport.New(0, 0)
-	vp.Style = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Padding(1)
+	vp := viewport.New(999, 999)
 
 	model := MainModel{
 		engine:              engine,
