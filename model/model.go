@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	dtypes "github.com/docker/docker/api/types"
 	"github.com/drewharris/shulker/config"
@@ -59,6 +60,7 @@ type MainModel struct {
 	spinner  spinner.Model
 	help     help.Model
 	cmdInput textinput.Model
+	viewport viewport.Model
 }
 
 func (m MainModel) Init() tea.Cmd {
@@ -100,9 +102,13 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.ToggleBuildLogs):
 			if m.viewMode == serverView {
 				m.viewMode = buildView
+				m.viewport.SetContent(strings.Join(m.buildMessages, "\n"))
 			} else if m.viewMode == buildView {
 				m.viewMode = serverView
+				m.viewport.SetContent(strings.Join(m.serverMessages, "\n"))
 			}
+
+			m.viewport.GotoBottom()
 			return m, nil
 
 		case key.Matches(msg, m.keys.SendCmdToSpigot):
@@ -128,6 +134,8 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg: // RESIZE
 		m.width = msg.Width
 		m.height = msg.Height
+		m.viewport.Height = msg.Height - 6
+		m.viewport.Width = msg.Width
 
 	// Channel output messages
 	case types.OutputMsg:
@@ -143,8 +151,15 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.serverMessages = append(m.serverMessages, msg.Message)
 		case types.BuildOutput:
 			m.buildMessages = append(m.buildMessages, msg.Message)
-
 		}
+
+		if m.viewMode == serverView {
+			m.viewport.SetContent(strings.Join(m.serverMessages, "\n"))
+		} else if m.viewMode == buildView {
+			m.viewport.SetContent(strings.Join(m.buildMessages, "\n"))
+		}
+
+		m.viewport.GotoBottom()
 		return m, ListenForOutput(m.outputChan)
 
 	case types.QuickMsg:
@@ -196,12 +211,16 @@ func InitialModel(engine engine.Engine, config config.Config) MainModel {
 	outputChan := make(chan types.OutputMsg)
 	ti := textinput.New()
 	ti.Placeholder = "Send command to server..."
+
+	viewport := viewport.New(0, 0)
+
 	model := MainModel{
 		engine:              engine,
 		viewMode:            startupView,
 		outputChan:          outputChan,
 		keys:                DefaultKeyMap,
 		help:                help.New(),
+		viewport:            viewport,
 		config:              config,
 		spinner:             s,
 		cmdInput:            ti,
