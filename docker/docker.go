@@ -39,6 +39,11 @@ func CreateContainer(d *client.Client) (container.CreateResponse, error) {
 			},
 			{
 				Type:   mount.TypeBind,
+				Source: cwd + "/libraries",
+				Target: "/plugins/libraries",
+			},
+			{
+				Type:   mount.TypeBind,
 				Source: cwd + "/static",
 				Target: "/static",
 			},
