@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -18,9 +19,11 @@ import (
 )
 
 type HostEngine struct {
-	pwd    string
-	config config.Config
-	server *exec.Cmd
+	pwd        string
+	config     config.Config
+	server     *exec.Cmd
+	serverPipe io.WriteCloser
+	cancel     context.CancelFunc
 }
 
 func NewHostEngine(config config.Config) (*HostEngine, error) {
@@ -107,6 +110,10 @@ func (h *HostEngine) RebuildAllPlugins(log types.Logger, disableCache bool) erro
 }
 
 func (h *HostEngine) StartServer(log types.Logger) error {
+	// Create context
+	context, cancel := context.WithCancel(context.Background())
+	h.cancel = cancel
+
 	var baseDir = filepath.FromSlash(h.pwd + "/.shulkerbox/")
 	cmdtmp := commands.Command{
 		Name: "java",
@@ -114,46 +121,54 @@ func (h *HostEngine) StartServer(log types.Logger) error {
 		Args: []string{"-Xms1024M", "-Xmx2048M", "-Dfile.encoding=UTF-8", "-jar", "spigot.jar", "--world-dir", "./worlds", "nogui"},
 	}
 
-	cmd := exec.Command(cmdtmp.Name, cmdtmp.Args...)
-	cmd.Dir = baseDir
+	h.server = exec.CommandContext(context, cmdtmp.Name, cmdtmp.Args...)
+	h.server.Dir = baseDir
 
 	// Display output
-	stdout, err := cmd.StdoutPipe()
+	stdout, err := h.server.StdoutPipe()
 	if err != nil {
 		return err
 	}
 
+	stdin, err := h.server.StdinPipe()
+	if err != nil {
+		return err
+	}
+	h.serverPipe = stdin
+
 	// Combine stdout and stderr so that both are captured
-	cmd.Stderr = cmd.Stdout
+	h.server.Stderr = h.server.Stdout
 
 	// Start the command
-	if err := cmd.Start(); err != nil {
+	if err := h.server.Start(); err != nil {
 		return err
 	}
 
-	scanner := bufio.NewScanner(stdout) // Scanner doesn't return newline byte
-	for scanner.Scan() {
-		log(strings.ReplaceAll(scanner.Text(), "\n", ""))
-	}
+	go func() {
+		scanner := bufio.NewScanner(stdout) // Scanner doesn't return newline byte
+		for scanner.Scan() {
+			log(strings.ReplaceAll(scanner.Text(), "\n", ""))
+		}
+	}()
 
-	h.server = cmd
 	return nil
 }
 
 // Not implemented
 func (h *HostEngine) Shutdown() error {
 	if h.server != nil {
-		if h.server.Process != nil {
-			err := h.server.Process.Kill()
-			return err
-		}
+		h.cancel()
+		h.server.Wait()
 	}
 	return nil
 }
 
-// Not Implemented
-func (h *HostEngine) CanAttach() bool                      { return false }
-func (h *HostEngine) SendCommandToSpigot(cmd string) error { return nil }
+func (h *HostEngine) CanAttach() bool { return false }
+
+func (h *HostEngine) SendCommandToSpigot(cmd string) error {
+	_, err := io.WriteString(h.serverPipe, cmd+"\n")
+	return err
+}
 
 func copyFileContents(src, dst string) (err error) {
 	in, err := os.Open(src)
