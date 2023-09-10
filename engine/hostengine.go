@@ -122,6 +122,9 @@ func (h *HostEngine) StartServer(log types.Logger) error {
 	}
 
 	h.server = exec.CommandContext(context, cmdtmp.Name, cmdtmp.Args...)
+	os.Setenv("STATIC_DIR", h.config.StaticDir)
+	log("static dir : " + h.config.StaticDir)
+	h.server.Env = os.Environ()
 	h.server.Dir = baseDir
 
 	// Display output
@@ -154,7 +157,6 @@ func (h *HostEngine) StartServer(log types.Logger) error {
 	return nil
 }
 
-// Not implemented
 func (h *HostEngine) Shutdown() error {
 	if h.server != nil {
 		h.cancel()

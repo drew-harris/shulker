@@ -11,6 +11,7 @@ import (
 
 type Config struct {
 	ShulkerboxUrl   string   `yaml:"shulker_box_url"`
+	StaticDir       string   `yaml:"static_dir"`
 	PluginCopyPaths []string `yaml:"plugin_paths"`
 }
 

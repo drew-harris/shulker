@@ -9,15 +9,10 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	dtypes "github.com/docker/docker/api/types"
 	"github.com/drewharris/shulker/config"
 	"github.com/drewharris/shulker/engine"
 	"github.com/drewharris/shulker/types"
 )
-
-type ServerExec struct {
-	Connection dtypes.HijackedResponse
-}
 
 type Loggers struct {
 	error   types.Logger
